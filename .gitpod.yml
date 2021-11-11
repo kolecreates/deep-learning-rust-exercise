@@ -1,0 +1,8 @@
+# Configure a custom docker image. Here we install 'cargo watch'
+image:
+  file: .gitpod.Dockerfile
+  
+vscode:
+  extensions:
+    # "The" Rust extension for VSCode
+    - matklad.rust-analyzer
