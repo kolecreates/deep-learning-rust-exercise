@@ -1,7 +1,7 @@
 pub mod linearalg {
     use std::ops::Sub;
 
-    pub struct Tensor<T:Copy> {
+    pub struct Tensor<T> {
         pub shape: Vec<usize>,
         pub data: Vec<T>
     }
@@ -23,7 +23,7 @@ pub mod linearalg {
         slice_count
     }
 
-    impl<T:Copy> Tensor<T> {
+    impl<T:Copy + PartialEq> Tensor<T> {
         
         
         fn flatten_indices(&self, indices: &Vec<usize>) -> usize {
@@ -93,7 +93,7 @@ pub mod linearalg {
             }
         }
 
-        pub fn get_elements(&self, start_indices: &Vec<usize>, end_indices: &Vec<usize>) -> Vec<T> {
+        pub fn get_elements(&self, start_indices: &Vec<usize>, end_indices: &Vec<usize>) -> Tensor<T> {
             let mut patch: Vec<T> = vec![];
             let indices_of_slices = self.get_indices_of_slices(start_indices, end_indices);
             for slice_num in 0..indices_of_slices.len() {
@@ -103,7 +103,17 @@ pub mod linearalg {
             }
             
 
-            patch
+            Tensor { shape: subtract(end_indices, start_indices), data: patch }
+        }
+
+        pub fn equals(&self, other: &Tensor<T>) -> bool {
+            for i in 0..self.data.len() {
+                if self.data[i] != other.data[i] {
+                    return false;
+                }
+            }
+
+            return true;
         }
     }
 }
@@ -124,10 +134,16 @@ mod tests {
             assert!(t.data[3*2*6+5] == 2);
         }
 
-        // #[test]
-        // fn test_get_patch(){
-        //     let mut t = Tensor::from_shape(vec![4,5], 0);
-        //     t.set_element(&vec![1,1], 1);
-        // }
+        #[test]
+        fn test_set_elements_get_elements(){
+            let mut t = Tensor::from_shape(vec![4,4], 0);
+            let start = &vec![1,1];
+            let end = &vec![3,3];
+            let in_patch = &Tensor::from_shape(vec![2,2], 1);
+            t.set_elements(start, end, in_patch);
+            let out_patch = t.get_elements(start, end);
+
+            assert!(in_patch.equals(&out_patch))
+        }
     }
 }
