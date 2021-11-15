@@ -1,5 +1,5 @@
 pub mod linearalg {
-    use std::ops::Sub;
+    use std::ops::{Add, Mul, Sub};
 
     pub struct Tensor<T> {
         pub shape: Vec<usize>,
@@ -8,8 +8,8 @@ pub mod linearalg {
 
     fn subtract<T: Sub<Output = T> + Copy>(a: &Vec<T>, b: &Vec<T>) -> Vec<T> {
         let mut size = vec![];
-        for i in 0..size.len() {
-            size[i] = a[i] - b[i];
+        for i in 0..a.len() {
+            size.push(a[i] - b[i]);
         }
 
         size
@@ -23,7 +23,7 @@ pub mod linearalg {
         slice_count
     }
 
-    impl<T:Copy + PartialEq> Tensor<T> {
+    impl<T:Copy + PartialEq + Mul<Output = T> + Add<Output = T>> Tensor<T> {
         
         
         fn flatten_indices(&self, indices: &Vec<usize>) -> usize {
@@ -99,14 +99,40 @@ pub mod linearalg {
             for slice_num in 0..indices_of_slices.len() {
                 let (slice_start, slice_end) = indices_of_slices[slice_num];
                 let slice = &self.data[slice_start..slice_end];
-                patch.copy_from_slice(slice);
+                patch.extend_from_slice(slice);
             }
             
 
             Tensor { shape: subtract(end_indices, start_indices), data: patch }
         }
 
+        pub fn multiply(&self, other: &Tensor<T>) -> Tensor<T> {
+            let mut product: Vec<T> = vec![];
+
+            for i in 0..self.data.len() {
+                product.push(self.data[i] * other.data[i]);
+            }
+
+            Tensor { shape: self.shape.clone(), data: product }
+        }
+
+        pub fn sum(&self) -> T {
+            let mut sum = self.data[0];
+            for i in 1..self.data.len() {
+                sum = sum + self.data[i];
+            }
+            sum
+        }
+
         pub fn equals(&self, other: &Tensor<T>) -> bool {
+            if self.shape.len() != other.shape.len() {
+                return false;
+            }
+            for i in 0..self.shape.len() {
+                if self.shape[i] != other.shape[i] {
+                    return false;
+                }
+            }
             for i in 0..self.data.len() {
                 if self.data[i] != other.data[i] {
                     return false;
@@ -123,6 +149,20 @@ mod tests {
     
     mod linearalg {
         use crate::linearalg::Tensor;
+
+        #[test]
+        fn test_equals(){
+            let t1 = Tensor::from_shape(vec![2,2], 0);
+            let t2 = Tensor::from_shape(vec![4,4], 0);
+            assert!(!t1.equals(&t2));
+            let t3 = Tensor::from_shape(vec![4,4], 1);
+            assert!(!t2.equals(&t3));
+            assert!(t2.equals(&t2));
+            let mut t4 = Tensor::from_shape(vec![2,2], 0);
+            assert!(t4.equals(&t1));
+            t4.set_element(&vec![0,1], 3);
+            assert!(!t4.equals(&t1));
+        }
 
         #[test]
         fn test_set_element(){
@@ -144,6 +184,20 @@ mod tests {
             let out_patch = t.get_elements(start, end);
 
             assert!(in_patch.equals(&out_patch))
+        }
+
+        #[test]
+        fn test_multiply(){
+            let t1 = Tensor::from_shape(vec![2,2], 2);
+            let t2 = Tensor::from_shape(vec![2,2], 2);
+            let t3 = Tensor::from_shape(vec![2,2], 4);
+            assert!(t2.multiply(&t1).equals(&t3));
+        }
+
+        #[test]
+        fn test_sum(){
+            let t1 = Tensor::from_shape(vec![2,2], 2);
+            assert!(t1.sum() == 8);
         }
     }
 }
