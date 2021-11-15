@@ -1,10 +1,10 @@
 pub mod linearalg {
-    pub struct Tensor<T> {
+    pub struct Tensor<T:Clone> {
         pub shape: Vec<usize>,
         pub data: Vec<T>
     }
 
-    impl<T> Tensor<T> {
+    impl<T:Clone> Tensor<T> {
         pub fn get_rank(&self) -> usize {
             self.shape.len()
         }
@@ -21,7 +21,8 @@ pub mod linearalg {
             scaled_index
         }
         pub fn set_element(&mut self, indices: &Vec<usize>, value: T) {
-            self.data[self.flatten_indices(&indices)] = value;
+            let index = self.flatten_indices(&indices);
+            self.data[index] = value;
         }
 
         pub fn slice(&self, index: usize) -> &[T]{
@@ -37,8 +38,22 @@ pub mod linearalg {
         }
 
         pub fn get_patch(&self, corner: &Vec<usize>, size: &Vec<usize>) -> &[T] {
-            let corner_index = self.flatten_indices(corner);
-            
+            let mut slice_count = 1;
+            for i in 0..self.shape.len()-1 {
+                let patch_dim_size = size[i];
+                slice_count *= patch_dim_size;
+            }
+
+            let mut patch: Vec<T> = vec![];
+            let offset = self.flatten_indices(corner);
+            for i in 0..slice_count {
+                let slice_start = offset;
+                let slice_end = slice_start + size[size.len()-1];
+                let slice = &self.data[slice_start..slice_end];
+               patch.extend_from_slice(slice);
+            }
+
+            &[]
         }
     }
 }

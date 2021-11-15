@@ -25,7 +25,7 @@ pub mod architectures {
                         let filter = filters.slice(filter_index);
                         let image_patch= image.get_patch(image_y, image_x, filter_size);
                         
-                        output.set_element(vec![filter_index, image_y, image_x], 0f32);
+                        output.set_element(&vec![filter_index, image_y, image_x], 0f32);
                     }
                 }
             }
