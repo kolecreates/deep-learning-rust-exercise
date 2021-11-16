@@ -42,10 +42,8 @@ pub mod linearalg {
             let b_rows = b.shape[0];
             for i in 0..rows {
                 let a_row = a.get_elements(&vec![i, 0], &vec![i,a_cols]);
-                a_row.print();
                 for j in 0..cols {
                     let b_col = b.get_elements(&vec![0, j], &vec![b_rows, j]);
-                    b_col.print();
                     product.set_element(&vec![i, j], a_row.multiply(&b_col).sum());
                 }
             }
@@ -107,8 +105,7 @@ pub mod linearalg {
         fn get_indices_of_slices(&self, start_indices: &Vec<usize>, end_indices: &Vec<usize>) -> Vec<(usize, usize)> {
             let size = get_shape_from_range(end_indices, start_indices);
             let slice_count = get_max_slice_count(&size);
-            let slice_size = self.shape[self.shape.len()-1];
-
+            let slice_size = size[size.len()-1];
             let mut output: Vec<(usize, usize)> = vec![];
             let mut slice_start_indices = start_indices.clone();
             for _slice_num in 0..slice_count {
@@ -116,7 +113,7 @@ pub mod linearalg {
                 let slice_end = slice_start + slice_size;
                 output.push((slice_start, slice_end));
                 for j in 0..size.len()-1 {
-                    let i = size.len() - j - 1;
+                    let i = size.len() - j - 2;
                     let dim_size = size[i];
                     let dim_index = slice_start_indices[i];
                     if dim_index - start_indices[i] < dim_size {
@@ -286,6 +283,17 @@ mod tests {
             let t2 = t1.get_elements(&vec![0,0],  &vec![0,2]);
             let t3 = Tensor { shape: vec![1,2], data: vec![1,2]};
             assert!(t2.equals(&t3));
+        }
+
+        #[test]
+        fn test_get_elements_with_greater_rows() {
+            let t1 = Tensor { shape: vec![3, 2], data: vec![10.0,11.0,12.0,13.0,14.0,15.0]};
+            let t2 = t1.get_elements(&vec![0,0], &vec![0,2]);
+            let t3 = Tensor { shape: vec![1,2], data: vec![10.0, 11.0]};
+            assert!(t2.equals(&t3));
+            let t4 = t1.get_elements(&vec![0,0], &vec![2,0]);
+            let t5 = Tensor { shape: vec![2,1], data: vec![10.0, 12.0]};
+            assert!(t4.equals(&t5));
         }
 
         #[test]
