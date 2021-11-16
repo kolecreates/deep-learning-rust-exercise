@@ -1,5 +1,5 @@
 pub mod linearalg {
-    use std::ops::{Add, Div, Mul, Sub};
+    use std::{fmt::Display, ops::{Add, Div, Mul, Sub}};
 
     pub struct Tensor<T> {
         pub shape: Vec<usize>,
@@ -24,6 +24,38 @@ pub mod linearalg {
         Tensor { shape: t.shape.clone(), data: output }
     }
 
+    pub fn tensor_dot(a: &Tensor<f32>, b: &Tensor<f32>) -> Tensor<f32> {
+        let a_dim = a.shape.len();
+        let b_dim = b.shape.len();
+        if a_dim == 1 && b_dim == 1 {
+            assert!(a.shape[0] == b.shape[0]);
+            let mut sum = 0f32;
+            for i in 0..a.data.len() {
+                sum += a.data[i] * b.data[i];
+            }
+            return Tensor::from_shape(vec![1], sum);
+        }else if a_dim == 2 && b_dim == 2 {
+            let rows = a.shape[0];
+            let cols = b.shape[1];
+            let mut product = Tensor::from_shape(vec![rows, cols], 0f32);
+            let a_cols = a.shape[1];
+            let b_rows = b.shape[0];
+            for i in 0..rows {
+                let a_row = a.get_elements(&vec![i, 0], &vec![i,a_cols]);
+                a_row.print();
+                for j in 0..cols {
+                    let b_col = b.get_elements(&vec![0, j], &vec![b_rows, j]);
+                    b_col.print();
+                    product.set_element(&vec![i, j], a_row.multiply(&b_col).sum());
+                }
+            }
+            
+            return product;
+        }else{
+            return Tensor::from_shape(vec![1], 0f32);
+        }
+    }
+
     fn subtract<T: Sub<Output = T> + Copy>(a: &Vec<T>, b: &Vec<T>) -> Vec<T> {
         let mut size = vec![];
         for i in 0..a.len() {
@@ -33,15 +65,29 @@ pub mod linearalg {
         size
     }
 
-    fn get_max_slice_count(dimensions: &Vec<usize>) -> usize {
+    fn set_min<T: PartialOrd + Copy>(a: &mut Vec<T>, min: T) {
+        for i in 0..a.len() {
+            if a[i] < min {
+                a[i] = min;
+            }
+        }
+    }
+
+    fn get_shape_from_range(a: &Vec<usize>, b: &Vec<usize>) -> Vec<usize> {
+        let mut shape = subtract(a, b);
+        set_min(&mut shape, 1);
+        shape
+    }
+
+    fn get_max_slice_count(shape: &Vec<usize>) -> usize {
         let mut slice_count = 1;
-        for i in 0..dimensions.len()-1 {
-            slice_count *= dimensions[i];
+        for i in 0..shape.len()-1 {
+            slice_count *= shape[i];
         }
         slice_count
     }
 
-    impl<T:Copy + PartialEq + Mul<Output = T> + Add<Output = T> + Div<Output = T> + PartialOrd> Tensor<T> {
+    impl<T:Copy + PartialEq + Mul<Output = T> + Add<Output = T> + Div<Output = T> + PartialOrd + Display> Tensor<T> {
         
         
         fn flatten_indices(&self, indices: &Vec<usize>) -> usize {
@@ -59,9 +105,9 @@ pub mod linearalg {
         
 
         fn get_indices_of_slices(&self, start_indices: &Vec<usize>, end_indices: &Vec<usize>) -> Vec<(usize, usize)> {
-            let size = subtract(end_indices, start_indices);
+            let size = get_shape_from_range(end_indices, start_indices);
             let slice_count = get_max_slice_count(&size);
-            let slice_size = size[size.len()-1];
+            let slice_size = self.shape[self.shape.len()-1];
 
             let mut output: Vec<(usize, usize)> = vec![];
             let mut slice_start_indices = start_indices.clone();
@@ -121,7 +167,7 @@ pub mod linearalg {
             }
             
 
-            Tensor { shape: subtract(end_indices, start_indices), data: patch }
+            Tensor { shape: get_shape_from_range(end_indices, start_indices), data: patch }
         }
 
         pub fn multiply(&self, other: &Tensor<T>) -> Tensor<T> {
@@ -163,6 +209,15 @@ pub mod linearalg {
             Tensor { shape: self.shape.clone(), data: output }
         }
 
+        pub fn print(&self){
+            //let slice_size = self.shape[self.shape.len()-1];
+            for i in 0..self.data.len() {
+                print!("{},", self.data[i]);
+            }
+            println!("");
+            
+        }
+
         pub fn equals(&self, other: &Tensor<T>) -> bool {
             if self.shape.len() != other.shape.len() {
                 return false;
@@ -187,7 +242,7 @@ pub mod linearalg {
 mod tests {
     
     mod linearalg {
-        use crate::linearalg::Tensor;
+        use crate::linearalg::{Tensor, tensor_dot};
 
         #[test]
         fn test_equals(){
@@ -226,6 +281,14 @@ mod tests {
         }
 
         #[test]
+        fn test_get_elements_with_zero_index(){
+            let t1 = Tensor { shape: vec![2,2], data: vec![1,2,3,4]};
+            let t2 = t1.get_elements(&vec![0,0],  &vec![0,2]);
+            let t3 = Tensor { shape: vec![1,2], data: vec![1,2]};
+            assert!(t2.equals(&t3));
+        }
+
+        #[test]
         fn test_multiply(){
             let t1 = Tensor::from_shape(vec![2,2], 2);
             let t2 = Tensor::from_shape(vec![2,2], 2);
@@ -250,6 +313,20 @@ mod tests {
             let t1 = Tensor{ shape: vec![2,2], data: vec![1.0,2.0,3.0,4.0]};
             let t2 = Tensor { shape: vec![2,2], data: vec![0.5,1.0,1.5,2.0]};
             assert!(t1.scalar_divide(2.0).equals(&t2));
+        }
+
+        #[test]
+        fn test_tensor_dot_1d() {
+            let product = tensor_dot(&Tensor{ shape: vec![3], data: vec![3.0,4.0,5.0]}, &Tensor{ shape: vec![3], data: vec![7.0,8.0,9.0] });
+            assert!(product.data[0] == 98.0);
+        }
+
+        #[test]
+        fn test_tensor_dot_2d(){
+            let a = Tensor { shape: vec![2, 3], data: vec![3.0,4.0,5.0,6.0,7.0,8.0]};
+            let b = Tensor { shape: vec![3, 2], data: vec![10.0,11.0,12.0,13.0,14.0,15.0]};
+            let product = tensor_dot(&a, &b);
+            assert!(product.equals(&Tensor { shape: vec![2,2], data: vec![148.0, 160.0, 256.0, 277.0]}))
         }
     }
 }

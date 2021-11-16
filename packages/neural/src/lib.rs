@@ -17,6 +17,10 @@ mod losses {
 mod layers {
     use math::linearalg::Tensor;
 
+    pub fn dense(input: &Tensor<f32>, weights: &Tensor<f32>, bias: &Tensor<f32>) -> Tensor<f32> {
+        input.dot(weights).add(bias)
+    }
+
     pub fn max_pool(image: &Tensor<f32>, kernal_size: usize, stride: usize) -> Tensor<f32> {
         let image_height = image.shape[0];
         let image_width = image.shape[1];
