@@ -1,9 +1,27 @@
 pub mod linearalg {
-    use std::ops::{Add, Mul, Sub};
+    use std::ops::{Add, Div, Mul, Sub};
 
     pub struct Tensor<T> {
         pub shape: Vec<usize>,
         pub data: Vec<T>
+    }
+
+    pub fn tensor_exp(t: &Tensor<f32>) -> Tensor<f32> {
+        let mut output = t.data.clone();
+        for i in 0..t.data.len() {
+            output[i] = t.data[i].exp();
+        }
+
+        Tensor { shape: t.shape.clone(), data: output }
+    }
+
+    pub fn tensor_log(t: &Tensor<f32>) -> Tensor<f32> {
+        let mut output = t.data.clone();
+        for i in 0..t.data.len() {
+            output[i] = t.data[i].log(f32::EPSILON);
+        }
+
+        Tensor { shape: t.shape.clone(), data: output }
     }
 
     fn subtract<T: Sub<Output = T> + Copy>(a: &Vec<T>, b: &Vec<T>) -> Vec<T> {
@@ -23,7 +41,7 @@ pub mod linearalg {
         slice_count
     }
 
-    impl<T:Copy + PartialEq + Mul<Output = T> + Add<Output = T>> Tensor<T> {
+    impl<T:Copy + PartialEq + Mul<Output = T> + Add<Output = T> + Div<Output = T> + PartialOrd> Tensor<T> {
         
         
         fn flatten_indices(&self, indices: &Vec<usize>) -> usize {
@@ -124,6 +142,27 @@ pub mod linearalg {
             sum
         }
 
+        pub fn max(&self) -> T {
+            let mut max = self.data[0];
+            for i in 1..self.data.len(){
+                let val = self.data[i];
+                if val > max {
+                    max = val;
+                }
+            }
+
+            max
+        }
+
+        pub fn scalar_divide(&self, scalar: T) -> Tensor<T> {
+            let mut output = self.data.clone();
+            for i in 0..self.data.len() {
+                output[i] = output[i] / scalar;
+            }
+
+            Tensor { shape: self.shape.clone(), data: output }
+        }
+
         pub fn equals(&self, other: &Tensor<T>) -> bool {
             if self.shape.len() != other.shape.len() {
                 return false;
@@ -198,6 +237,19 @@ mod tests {
         fn test_sum(){
             let t1 = Tensor::from_shape(vec![2,2], 2);
             assert!(t1.sum() == 8);
+        }
+
+        #[test]
+        fn test_max(){
+            let t1 = Tensor { shape: vec![2,2], data: vec![1,2,3,4]};
+            assert!(t1.max() == 4);
+        }
+
+        #[test]
+        fn test_scalar_divide(){
+            let t1 = Tensor{ shape: vec![2,2], data: vec![1.0,2.0,3.0,4.0]};
+            let t2 = Tensor { shape: vec![2,2], data: vec![0.5,1.0,1.5,2.0]};
+            assert!(t1.scalar_divide(2.0).equals(&t2));
         }
     }
 }
