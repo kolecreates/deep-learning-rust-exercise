@@ -103,6 +103,63 @@ pub mod linearalg {
         slice_count
     }
 
+    fn inc_indices(shape: &Vec<usize>, indices: &mut Vec<usize>) {
+        let rank = shape.len();
+        let mut carry = 1;
+        for i in 0..rank {
+            let j = rank - i - 1;
+            indices[j] += carry;
+            if indices[j] >= shape[j] {
+                indices[j] = 0;
+                carry = 1;
+            }else {
+                carry = 0;
+            }
+        }
+    }
+
+    //follows NumPy broadcasting rules 
+    //see docs: https://numpy.org/doc/stable/user/basics.broadcasting.html
+    pub fn tensor_add(a: &Tensor<f32>, b: &Tensor<f32>) -> Tensor<f32> {
+        let a_rank = a.get_rank();
+        let b_rank = b.get_rank();
+        let min_rank = cmp::min(a_rank, b_rank);
+
+        //check if broadcasting can be performed
+        for i in 0..min_rank {
+            let j = min_rank - i - 1;
+            assert!(a.shape[j] == b.shape[j] || a.shape[j] == 1 || b.shape[j] == 1);
+        }
+
+        let max_rank = cmp::max(a_rank, b_rank);
+        let mut out_shape = vec![0; max_rank];
+        for j in 0..max_rank {
+            let i = max_rank - j - 1;
+            if j < min_rank {
+                out_shape[i] = cmp::max(a.shape[a.shape.len()-j-1], b.shape[b.shape.len()-j-1]);
+            }else if a_rank == max_rank {
+                out_shape[i] = a.shape[i];
+            }else {
+                out_shape[i] = b.shape[i];
+            }
+        }
+
+        let slice_count = get_max_slice_count(&out_shape);
+        let element_count = slice_count * out_shape[out_shape.len()-1];
+        let mut out = vec![0f32; element_count];
+
+        let mut indices = vec![0; max_rank];
+        
+        for i in 0..element_count {
+            let a_index = a.flatten_indices_for_broadcast(&indices);
+            let b_index = b.flatten_indices_for_broadcast(&indices);
+            out[i] = a.data[a_index] + b.data[b_index];
+            inc_indices(&out_shape, &mut indices);
+        }
+
+        Tensor { shape: out_shape, data: out }
+    }
+
     impl<T:Copy + PartialEq + Mul<Output = T> + Add<Output = T> + Div<Output = T> + PartialOrd + Display> Tensor<T> {
         
         
@@ -117,6 +174,21 @@ pub mod linearalg {
             }
 
             scaled_index
+        }
+
+        fn flatten_indices_for_broadcast(&self, indices: &Vec<usize>) -> usize {
+            let rank = self.get_rank();
+            let mut adjusted = vec![0; rank];
+            for i in 0..rank {
+                let j = rank - i - 1;
+                if self.shape[j] == 1 {
+                    adjusted[j] = 0;
+                }else{
+                    adjusted[j] = indices[j];
+                }
+            }
+
+            self.flatten_indices(&adjusted)
         }
         
 
@@ -224,18 +296,6 @@ pub mod linearalg {
             Tensor { shape: self.shape.clone(), data: output }
         }
 
-        pub fn add(&self, other: &Tensor<T>) -> Tensor<T> {
-            let a_rank = self.get_rank();
-            let b_rank = other.get_rank();
-            let rank = cmp::min(a_rank, b_rank)
-            for i in 0..rank {
-                let j = rank - i - 1;
-                assert!(self.shape[j] == other.shape[j] || self.shape[j] == 1 || other.shape[j] == 1);
-            }
-
-            
-        }
-
         pub fn flatten(&self) -> Tensor<T> {
             Tensor { shape: vec![self.data.len()], data: self.data.clone() }
         }
@@ -247,6 +307,10 @@ pub mod linearalg {
             }
             println!("");
             
+        }
+
+        pub fn clone(&self) -> Tensor<T> {
+            Tensor { shape: self.shape.clone(), data: self.data.clone() }
         }
 
         pub fn equals(&self, other: &Tensor<T>) -> bool {
@@ -273,7 +337,7 @@ pub mod linearalg {
 mod tests {
     
     mod linearalg {
-        use crate::linearalg::{Tensor, tensor_dot};
+        use crate::linearalg::{Tensor, tensor_add, tensor_dot};
 
         #[test]
         fn test_equals(){
@@ -385,6 +449,19 @@ mod tests {
             let b = Tensor { shape: vec![2], data: vec![7.0,8.0]};
             let c = Tensor { shape: vec![2,2], data: vec![23.0, 21.0+32.0, 35.0+48.0, 49.0+64.0]};
             assert!(tensor_dot(&a, &b).equals(&c));
+        }
+
+        #[test]
+        fn test_tensor_add(){
+            let t1 = Tensor { shape: vec![5,4], data: vec![1.0; 5*4] };
+            let t2 = Tensor { shape: vec![1], data: vec![1.0]};
+            let t3 = Tensor { shape: vec![5,4], data: vec![2.0; 5*4] };
+            assert!(tensor_add(&t1, &t2).equals(&t3));
+            assert!(tensor_add(&t2, &t1).equals(&t3));
+            let t4 = Tensor { shape: vec![5,1,4], data: vec![1.0; 5*4] };
+            let t5 = Tensor { shape: vec![5,4,1], data: vec![1.0; 5*4]};
+            let t6 = Tensor { shape: vec![5,4,4], data: vec![2.0; 5*4*4] };
+            assert!(tensor_add(&t4, &t5).equals(&t6));
         }
     }
 }

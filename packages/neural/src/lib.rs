@@ -4,6 +4,17 @@ mod activations {
         let output = tensor_exp(&input);
         output.scalar_divide(output.sum())
     }
+
+    pub fn relu(input: &Tensor<f32>) -> Tensor<f32> {
+        let mut out = input.clone();
+        for i in 0..out.data.len() {
+            if out.data[i] < 0.0 {
+                out.data[i] = 0.0;
+            }
+        }
+
+        out
+    }
 }
 
 mod losses {
@@ -15,10 +26,10 @@ mod losses {
 }
 
 mod layers {
-    use math::linearalg::{Tensor, tensor_dot};
+    use math::linearalg::{Tensor, tensor_add, tensor_dot};
 
     pub fn dense(input: &Tensor<f32>, weights: &Tensor<f32>, bias: &Tensor<f32>) -> Tensor<f32> {
-        tensor_dot(&weights, &input)
+       tensor_add(&tensor_dot(&weights, &input), &bias) 
     }
 
     pub fn max_pool(image: &Tensor<f32>, kernal_size: usize, stride: usize) -> Tensor<f32> {
