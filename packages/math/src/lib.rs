@@ -49,9 +49,23 @@ pub mod linearalg {
             }
             
             return product;
-        }else{
-            return Tensor::from_shape(vec![1], 0f32);
+        }else if a_dim > 1 && b_dim == 1 {
+            //If a is an N-D array and b is a 1-D array, it is a sum product over the last axis of a and b.
+            let slice_size = a.shape[a.shape.len()-1];
+            assert!(slice_size == b.shape[0]);
+            let mut product = Tensor::from_shape(a.shape[0..a.shape.len()-1].to_vec(), 0f32 );
+            let mut i = 0;
+            while i < a.data.len() {
+                let slice = a.data[i..i+slice_size].to_vec();
+                let slice_tensor = Tensor { shape: vec![slice_size], data: slice.to_vec()};
+                product.data[i / slice_size] = slice_tensor.multiply(&b).sum();
+                i += slice_size;
+            }
+
+            return product;
         }
+
+        Tensor::from_shape(vec![0], 0f32)
     }
 
     fn subtract<T: Sub<Output = T> + Copy>(a: &Vec<T>, b: &Vec<T>) -> Vec<T> {
@@ -335,6 +349,22 @@ mod tests {
             let b = Tensor { shape: vec![3, 2], data: vec![10.0,11.0,12.0,13.0,14.0,15.0]};
             let product = tensor_dot(&a, &b);
             assert!(product.equals(&Tensor { shape: vec![2,2], data: vec![148.0, 160.0, 256.0, 277.0]}))
+        }
+
+        #[test]
+        fn test_tensor_dot_2d_1d(){
+            let a = Tensor { shape: vec![3,2], data: vec![1.0,2.0,3.0,4.0,5.0,6.0]};
+            let b = Tensor { shape: vec![2], data: vec![7.0,8.0]};
+            let c = Tensor { shape: vec![3], data: vec![23.0,53.0,83.0]};
+            assert!(tensor_dot(&a, &b).equals(&c));
+        }
+
+        #[test]
+        fn test_tensor_dot_3d_1d(){
+            let a = Tensor { shape: vec![2,2,2], data: vec![1.0,2.0,3.0,4.0,5.0,6.0,7.0,8.0]};
+            let b = Tensor { shape: vec![2], data: vec![7.0,8.0]};
+            let c = Tensor { shape: vec![2,2], data: vec![23.0, 21.0+32.0, 35.0+48.0, 49.0+64.0]};
+            assert!(tensor_dot(&a, &b).equals(&c));
         }
     }
 }
