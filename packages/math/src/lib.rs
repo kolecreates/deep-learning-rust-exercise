@@ -1,5 +1,5 @@
 pub mod linearalg {
-    use std::{fmt::Display, ops::{Add, Div, Mul, Sub}};
+    use std::{cmp, fmt::Display, ops::{Add, Div, Mul, Sub}};
 
     pub struct Tensor<T> {
         pub shape: Vec<usize>,
@@ -24,6 +24,8 @@ pub mod linearalg {
         Tensor { shape: t.shape.clone(), data: output }
     }
 
+    //matches the behaivor of NumPy dot function
+    //docs: https://numpy.org/doc/stable/reference/generated/numpy.dot.html
     pub fn tensor_dot(a: &Tensor<f32>, b: &Tensor<f32>) -> Tensor<f32> {
         let a_dim = a.shape.len();
         let b_dim = b.shape.len();
@@ -64,6 +66,8 @@ pub mod linearalg {
 
             return product;
         }
+
+        assert!(false, "Dot not implemented for a=Nd && b=Md where M >= 2.");
 
         Tensor::from_shape(vec![0], 0f32)
     }
@@ -218,6 +222,22 @@ pub mod linearalg {
             }
 
             Tensor { shape: self.shape.clone(), data: output }
+        }
+
+        pub fn add(&self, other: &Tensor<T>) -> Tensor<T> {
+            let a_rank = self.get_rank();
+            let b_rank = other.get_rank();
+            let rank = cmp::min(a_rank, b_rank)
+            for i in 0..rank {
+                let j = rank - i - 1;
+                assert!(self.shape[j] == other.shape[j] || self.shape[j] == 1 || other.shape[j] == 1);
+            }
+
+            
+        }
+
+        pub fn flatten(&self) -> Tensor<T> {
+            Tensor { shape: vec![self.data.len()], data: self.data.clone() }
         }
 
         pub fn print(&self){
