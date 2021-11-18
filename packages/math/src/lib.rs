@@ -24,54 +24,6 @@ pub mod linearalg {
         Tensor { shape: t.shape.clone(), data: output }
     }
 
-    //matches the behaivor of NumPy dot function
-    //docs: https://numpy.org/doc/stable/reference/generated/numpy.dot.html
-    pub fn tensor_dot(a: &Tensor<f32>, b: &Tensor<f32>) -> Tensor<f32> {
-        let a_dim = a.shape.len();
-        let b_dim = b.shape.len();
-        if a_dim == 1 && b_dim == 1 {
-            assert!(a.shape[0] == b.shape[0]);
-            let mut sum = 0f32;
-            for i in 0..a.data.len() {
-                sum += a.data[i] * b.data[i];
-            }
-            return Tensor::from_shape(vec![1], sum);
-        }else if a_dim == 2 && b_dim == 2 {
-            let rows = a.shape[0];
-            let cols = b.shape[1];
-            let mut product = Tensor::from_shape(vec![rows, cols], 0f32);
-            let a_cols = a.shape[1];
-            let b_rows = b.shape[0];
-            for i in 0..rows {
-                let a_row = a.get_elements(&vec![i, 0], &vec![i,a_cols]);
-                for j in 0..cols {
-                    let b_col = b.get_elements(&vec![0, j], &vec![b_rows, j]);
-                    product.set_element(&vec![i, j], a_row.multiply(&b_col).sum());
-                }
-            }
-            
-            return product;
-        }else if a_dim > 1 && b_dim == 1 {
-            //If a is an N-D array and b is a 1-D array, it is a sum product over the last axis of a and b.
-            let slice_size = a.shape[a.shape.len()-1];
-            assert!(slice_size == b.shape[0]);
-            let mut product = Tensor::from_shape(a.shape[0..a.shape.len()-1].to_vec(), 0f32 );
-            let mut i = 0;
-            while i < a.data.len() {
-                let slice = a.data[i..i+slice_size].to_vec();
-                let slice_tensor = Tensor { shape: vec![slice_size], data: slice.to_vec()};
-                product.data[i / slice_size] = slice_tensor.multiply(&b).sum();
-                i += slice_size;
-            }
-
-            return product;
-        }
-
-        assert!(false, "Dot not implemented for a=Nd && b=Md where M >= 2.");
-
-        Tensor::from_shape(vec![0], 0f32)
-    }
-
     fn subtract<T: Sub<Output = T> + Copy>(a: &Vec<T>, b: &Vec<T>) -> Vec<T> {
         let mut size = vec![];
         for i in 0..a.len() {
@@ -118,49 +70,7 @@ pub mod linearalg {
         }
     }
 
-    //follows NumPy broadcasting rules 
-    //see docs: https://numpy.org/doc/stable/user/basics.broadcasting.html
-    pub fn tensor_add(a: &Tensor<f32>, b: &Tensor<f32>) -> Tensor<f32> {
-        let a_rank = a.get_rank();
-        let b_rank = b.get_rank();
-        let min_rank = cmp::min(a_rank, b_rank);
-
-        //check if broadcasting can be performed
-        for i in 0..min_rank {
-            let j = min_rank - i - 1;
-            assert!(a.shape[j] == b.shape[j] || a.shape[j] == 1 || b.shape[j] == 1);
-        }
-
-        let max_rank = cmp::max(a_rank, b_rank);
-        let mut out_shape = vec![0; max_rank];
-        for j in 0..max_rank {
-            let i = max_rank - j - 1;
-            if j < min_rank {
-                out_shape[i] = cmp::max(a.shape[a.shape.len()-j-1], b.shape[b.shape.len()-j-1]);
-            }else if a_rank == max_rank {
-                out_shape[i] = a.shape[i];
-            }else {
-                out_shape[i] = b.shape[i];
-            }
-        }
-
-        let slice_count = get_max_slice_count(&out_shape);
-        let element_count = slice_count * out_shape[out_shape.len()-1];
-        let mut out = vec![0f32; element_count];
-
-        let mut indices = vec![0; max_rank];
-        
-        for i in 0..element_count {
-            let a_index = a.flatten_indices_for_broadcast(&indices);
-            let b_index = b.flatten_indices_for_broadcast(&indices);
-            out[i] = a.data[a_index] + b.data[b_index];
-            inc_indices(&out_shape, &mut indices);
-        }
-
-        Tensor { shape: out_shape, data: out }
-    }
-
-    impl<T:Copy + PartialEq + Mul<Output = T> + Add<Output = T> + Div<Output = T> + PartialOrd + Display> Tensor<T> {
+    impl<T:Copy + PartialEq + Mul<Output = T> + Add<Output = T> + Div<Output = T> + PartialOrd + Display + Default> Tensor<T> {
         
         
         fn flatten_indices(&self, indices: &Vec<usize>) -> usize {
@@ -258,10 +168,10 @@ pub mod linearalg {
         }
 
         pub fn multiply(&self, other: &Tensor<T>) -> Tensor<T> {
-            let mut product: Vec<T> = vec![];
-
+            let mut product: Vec<T> = vec![T::default(); self.data.len()];
+            
             for i in 0..self.data.len() {
-                product.push(self.data[i] * other.data[i]);
+                product[i] = self.data[i] * other.data[i];
             }
 
             Tensor { shape: self.shape.clone(), data: product }
@@ -294,6 +204,98 @@ pub mod linearalg {
             }
 
             Tensor { shape: self.shape.clone(), data: output }
+        }
+
+        //matches the behaivor of NumPy dot function
+        //docs: https://numpy.org/doc/stable/reference/generated/numpy.dot.html
+        pub fn dot(&self, b: &Tensor<T>) -> Tensor<T> {
+            let a = self;
+            let a_dim = a.shape.len();
+            let b_dim = b.shape.len();
+            if a_dim == 1 && b_dim == 1 {
+                assert!(a.shape[0] == b.shape[0]);
+                let mut sum = T::default();
+                for i in 0..a.data.len() {
+                    sum = sum + a.data[i] * b.data[i];
+                }
+                return Tensor::from_shape(vec![1], sum);
+            }else if a_dim == 2 && b_dim == 2 {
+                let rows = a.shape[0];
+                let cols = b.shape[1];
+                let mut product = Tensor::from_shape(vec![rows, cols], T::default());
+                let a_cols = a.shape[1];
+                let b_rows = b.shape[0];
+                for i in 0..rows {
+                    let a_row = a.get_elements(&vec![i, 0], &vec![i,a_cols]);
+                    for j in 0..cols {
+                        let b_col = b.get_elements(&vec![0, j], &vec![b_rows, j]);
+                        product.set_element(&vec![i, j], a_row.multiply(&b_col).sum());
+                    }
+                }
+                
+                return product;
+            }else if a_dim > 1 && b_dim == 1 {
+                //If a is an N-D array and b is a 1-D array, it is a sum product over the last axis of a and b.
+                let slice_size = a.shape[a.shape.len()-1];
+                assert!(slice_size == b.shape[0]);
+                let mut product = Tensor::from_shape(a.shape[0..a.shape.len()-1].to_vec(), T::default());
+                let mut i = 0;
+                while i < a.data.len() {
+                    let slice = a.data[i..i+slice_size].to_vec();
+                    let slice_tensor = Tensor { shape: vec![slice_size], data: slice.to_vec()};
+                    product.data[i / slice_size] = slice_tensor.multiply(&b).sum();
+                    i += slice_size;
+                }
+
+                return product;
+            }
+
+            assert!(false, "Dot not implemented for a=Nd && b=Md where M >= 2.");
+
+            Tensor::from_shape(vec![0], T::default())
+        }
+
+        //follows NumPy broadcasting rules 
+        //see docs: https://numpy.org/doc/stable/user/basics.broadcasting.html
+        pub fn add(&self, b: &Tensor<T>) -> Tensor<T> {
+            let a = self;
+            let a_rank = a.get_rank();
+            let b_rank = b.get_rank();
+            let min_rank = cmp::min(a_rank, b_rank);
+
+            //check if broadcasting can be performed
+            for i in 0..min_rank {
+                let j = min_rank - i - 1;
+                assert!(a.shape[j] == b.shape[j] || a.shape[j] == 1 || b.shape[j] == 1);
+            }
+
+            let max_rank = cmp::max(a_rank, b_rank);
+            let mut out_shape = vec![0; max_rank];
+            for j in 0..max_rank {
+                let i = max_rank - j - 1;
+                if j < min_rank {
+                    out_shape[i] = cmp::max(a.shape[a.shape.len()-j-1], b.shape[b.shape.len()-j-1]);
+                }else if a_rank == max_rank {
+                    out_shape[i] = a.shape[i];
+                }else {
+                    out_shape[i] = b.shape[i];
+                }
+            }
+
+            let slice_count = get_max_slice_count(&out_shape);
+            let element_count = slice_count * out_shape[out_shape.len()-1];
+            let mut out = vec![T::default(); element_count];
+
+            let mut indices = vec![0; max_rank];
+            
+            for i in 0..element_count {
+                let a_index = a.flatten_indices_for_broadcast(&indices);
+                let b_index = b.flatten_indices_for_broadcast(&indices);
+                out[i] = a.data[a_index] + b.data[b_index];
+                inc_indices(&out_shape, &mut indices);
+            }
+
+            Tensor { shape: out_shape, data: out }
         }
 
         pub fn flatten(&self) -> Tensor<T> {
@@ -337,7 +339,7 @@ pub mod linearalg {
 mod tests {
     
     mod linearalg {
-        use crate::linearalg::{Tensor, tensor_add, tensor_dot};
+        use crate::linearalg::{Tensor};
 
         #[test]
         fn test_equals(){
@@ -422,33 +424,35 @@ mod tests {
         }
 
         #[test]
-        fn test_tensor_dot_1d() {
-            let product = tensor_dot(&Tensor{ shape: vec![3], data: vec![3.0,4.0,5.0]}, &Tensor{ shape: vec![3], data: vec![7.0,8.0,9.0] });
+        fn test_dot_1d() {
+            let t1 = Tensor{ shape: vec![3], data: vec![3.0,4.0,5.0]};
+            let t2 = Tensor{ shape: vec![3], data: vec![7.0,8.0,9.0] };
+            let product = t1.dot(&t2);
             assert!(product.data[0] == 98.0);
         }
 
         #[test]
-        fn test_tensor_dot_2d(){
+        fn test_dot_2d(){
             let a = Tensor { shape: vec![2, 3], data: vec![3.0,4.0,5.0,6.0,7.0,8.0]};
             let b = Tensor { shape: vec![3, 2], data: vec![10.0,11.0,12.0,13.0,14.0,15.0]};
-            let product = tensor_dot(&a, &b);
+            let product = a.dot(&b);
             assert!(product.equals(&Tensor { shape: vec![2,2], data: vec![148.0, 160.0, 256.0, 277.0]}))
         }
 
         #[test]
-        fn test_tensor_dot_2d_1d(){
+        fn test_dot_2d_1d(){
             let a = Tensor { shape: vec![3,2], data: vec![1.0,2.0,3.0,4.0,5.0,6.0]};
             let b = Tensor { shape: vec![2], data: vec![7.0,8.0]};
             let c = Tensor { shape: vec![3], data: vec![23.0,53.0,83.0]};
-            assert!(tensor_dot(&a, &b).equals(&c));
+            assert!(a.dot(&b).equals(&c));
         }
 
         #[test]
-        fn test_tensor_dot_3d_1d(){
+        fn test_dot_3d_1d(){
             let a = Tensor { shape: vec![2,2,2], data: vec![1.0,2.0,3.0,4.0,5.0,6.0,7.0,8.0]};
             let b = Tensor { shape: vec![2], data: vec![7.0,8.0]};
             let c = Tensor { shape: vec![2,2], data: vec![23.0, 21.0+32.0, 35.0+48.0, 49.0+64.0]};
-            assert!(tensor_dot(&a, &b).equals(&c));
+            assert!(a.dot(&b).equals(&c));
         }
 
         #[test]
@@ -456,12 +460,12 @@ mod tests {
             let t1 = Tensor { shape: vec![5,4], data: vec![1.0; 5*4] };
             let t2 = Tensor { shape: vec![1], data: vec![1.0]};
             let t3 = Tensor { shape: vec![5,4], data: vec![2.0; 5*4] };
-            assert!(tensor_add(&t1, &t2).equals(&t3));
-            assert!(tensor_add(&t2, &t1).equals(&t3));
+            assert!(t1.add(&t2).equals(&t3));
+            assert!(t2.add(&t1).equals(&t3));
             let t4 = Tensor { shape: vec![5,1,4], data: vec![1.0; 5*4] };
             let t5 = Tensor { shape: vec![5,4,1], data: vec![1.0; 5*4]};
             let t6 = Tensor { shape: vec![5,4,4], data: vec![2.0; 5*4*4] };
-            assert!(tensor_add(&t4, &t5).equals(&t6));
+            assert!(t4.add(&t5).equals(&t6));
         }
     }
 }

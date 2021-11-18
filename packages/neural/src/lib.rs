@@ -26,10 +26,10 @@ mod losses {
 }
 
 mod layers {
-    use math::linearalg::{Tensor, tensor_add, tensor_dot};
+    use math::linearalg::{Tensor};
 
     pub fn dense(input: &Tensor<f32>, weights: &Tensor<f32>, bias: &Tensor<f32>) -> Tensor<f32> {
-       tensor_add(&tensor_dot(&weights, &input), &bias) 
+       weights.dot(&input).add(&bias)
     }
 
     pub fn max_pool(image: &Tensor<f32>, kernal_size: usize, stride: usize) -> Tensor<f32> {
