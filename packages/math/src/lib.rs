@@ -167,14 +167,16 @@ pub mod linearalg {
             Tensor { shape: get_shape_from_range(end_indices, start_indices), data: patch }
         }
 
-        pub fn multiply(&self, other: &Tensor<T>) -> Tensor<T> {
-            let mut product: Vec<T> = vec![T::default(); self.data.len()];
-            
-            for i in 0..self.data.len() {
-                product[i] = self.data[i] * other.data[i];
+        pub fn multiply(&self, b: &Tensor<T>) -> Tensor<T> {
+            let out_shape = Tensor::get_broadcasted_shape(self, b);
+            let indices = Tensor::get_indices_for_broadcasting(&out_shape, self, b);
+            let mut out = Tensor::from_shape(out_shape, T::default());
+            for i in 0..indices.len() {
+                let (a_index, b_index) = indices[i];
+                out.data[i] = self.data[a_index] * b.data[b_index];
             }
 
-            Tensor { shape: self.shape.clone(), data: product }
+            out
         }
 
         pub fn sum(&self) -> T {
@@ -214,11 +216,7 @@ pub mod linearalg {
             let b_dim = b.shape.len();
             if a_dim == 1 && b_dim == 1 {
                 assert!(a.shape[0] == b.shape[0]);
-                let mut sum = T::default();
-                for i in 0..a.data.len() {
-                    sum = sum + a.data[i] * b.data[i];
-                }
-                return Tensor::from_shape(vec![1], sum);
+                return Tensor::from_shape(vec![1], a.multiply(&b).sum());
             }else if a_dim == 2 && b_dim == 2 {
                 let rows = a.shape[0];
                 let cols = b.shape[1];
@@ -226,9 +224,9 @@ pub mod linearalg {
                 let a_cols = a.shape[1];
                 let b_rows = b.shape[0];
                 for i in 0..rows {
-                    let a_row = a.get_elements(&vec![i, 0], &vec![i,a_cols]);
+                    let a_row = a.get_elements(&vec![i, 0], &vec![i,a_cols]).flatten();
                     for j in 0..cols {
-                        let b_col = b.get_elements(&vec![0, j], &vec![b_rows, j]);
+                        let b_col = b.get_elements(&vec![0, j], &vec![b_rows, j]).flatten();
                         product.set_element(&vec![i, j], a_row.multiply(&b_col).sum());
                     }
                 }
@@ -255,10 +253,21 @@ pub mod linearalg {
             Tensor::from_shape(vec![0], T::default())
         }
 
+        pub fn add(&self, b: &Tensor<T>) -> Tensor<T> {
+            let out_shape = Tensor::get_broadcasted_shape(self, b);
+            let indices = Tensor::get_indices_for_broadcasting(&out_shape, self, b);
+            let mut out = Tensor::from_shape(out_shape, T::default());
+            for i in 0..indices.len() {
+                let (a_index, b_index) = indices[i];
+                out.data[i] = self.data[a_index] + b.data[b_index];
+            }
+
+            out
+        }
+
         //follows NumPy broadcasting rules 
         //see docs: https://numpy.org/doc/stable/user/basics.broadcasting.html
-        pub fn add(&self, b: &Tensor<T>) -> Tensor<T> {
-            let a = self;
+        fn get_broadcasted_shape(a: &Tensor<T>, b: &Tensor<T>) -> Vec<usize> {
             let a_rank = a.get_rank();
             let b_rank = b.get_rank();
             let min_rank = cmp::min(a_rank, b_rank);
@@ -282,20 +291,26 @@ pub mod linearalg {
                 }
             }
 
+            out_shape
+        }
+
+        //follows NumPy broadcasting rules 
+        //see docs: https://numpy.org/doc/stable/user/basics.broadcasting.html
+        fn get_indices_for_broadcasting(out_shape: &Vec<usize>, a: &Tensor<T>, b: &Tensor<T>) -> Vec<(usize,usize)> {
             let slice_count = get_max_slice_count(&out_shape);
             let element_count = slice_count * out_shape[out_shape.len()-1];
-            let mut out = vec![T::default(); element_count];
+            let mut out = vec![(0,0); element_count];
 
-            let mut indices = vec![0; max_rank];
+            let mut indices = vec![0; out_shape.len()];
             
             for i in 0..element_count {
                 let a_index = a.flatten_indices_for_broadcast(&indices);
                 let b_index = b.flatten_indices_for_broadcast(&indices);
-                out[i] = a.data[a_index] + b.data[b_index];
+                out[i] = (a_index, b_index);
                 inc_indices(&out_shape, &mut indices);
             }
 
-            Tensor { shape: out_shape, data: out }
+            out
         }
 
         pub fn flatten(&self) -> Tensor<T> {
@@ -303,7 +318,6 @@ pub mod linearalg {
         }
 
         pub fn print(&self){
-            //let slice_size = self.shape[self.shape.len()-1];
             for i in 0..self.data.len() {
                 print!("{},", self.data[i]);
             }
@@ -402,6 +416,10 @@ mod tests {
             let t2 = Tensor::from_shape(vec![2,2], 2);
             let t3 = Tensor::from_shape(vec![2,2], 4);
             assert!(t2.multiply(&t1).equals(&t3));
+            let t4 = Tensor { shape: vec![5,4], data: vec![1.0; 5*4] };
+            let t5 = Tensor { shape: vec![1], data: vec![2.0]};
+            let t6 = Tensor { shape: vec![5,4], data: vec![2.0; 5*4] };
+            assert!(t4.multiply(&t5).equals(&t6));
         }
 
         #[test]
@@ -436,6 +454,7 @@ mod tests {
             let a = Tensor { shape: vec![2, 3], data: vec![3.0,4.0,5.0,6.0,7.0,8.0]};
             let b = Tensor { shape: vec![3, 2], data: vec![10.0,11.0,12.0,13.0,14.0,15.0]};
             let product = a.dot(&b);
+            product.print();
             assert!(product.equals(&Tensor { shape: vec![2,2], data: vec![148.0, 160.0, 256.0, 277.0]}))
         }
 
