@@ -70,20 +70,24 @@ pub mod linearalg {
         }
     }
 
+    fn flatten_indices(shape: &Vec<usize>, indices: &Vec<usize>) -> usize {
+        let mut scaled_index = 0;
+        let mut scale = 1;
+        for j in 0..indices.len() {
+            let i = indices.len() - j - 1;
+            let index = indices[i];
+            scaled_index += scale * index;
+            scale *= shape[i];
+        }
+
+        scaled_index
+    }
+
     impl<T:Copy + PartialEq + Mul<Output = T> + Add<Output = T> + Div<Output = T> + PartialOrd + Display + Default> Tensor<T> {
         
         
         fn flatten_indices(&self, indices: &Vec<usize>) -> usize {
-            let mut scaled_index = 0;
-            let mut scale = 1;
-            for j in 0..indices.len() {
-                let i = indices.len() - j - 1;
-                let index = indices[i];
-                scaled_index += scale * index;
-                scale *= self.shape[i];
-            }
-
-            scaled_index
+            flatten_indices(&self.shape, indices)
         }
 
         fn flatten_indices_for_broadcast(&self, indices: &Vec<usize>) -> usize {
@@ -317,6 +321,27 @@ pub mod linearalg {
             Tensor { shape: vec![self.data.len()], data: self.data.clone() }
         }
 
+        pub fn transpose(&self) -> Tensor<T> {
+            let mut out_shape = self.shape.clone();
+            out_shape.reverse();
+
+            let mut indices = vec![0; out_shape.len()];
+
+
+            let mut out_data = vec![T::default(); self.data.len()];
+            for i in 0..self.data.len() {
+                
+                let index = flatten_indices(&self.shape, &indices);
+                out_data[i] = self.data[index];
+                indices.reverse();
+                inc_indices(&out_shape, &mut indices);
+                indices.reverse();
+                
+            }   
+            
+            Tensor { shape: out_shape, data: out_data }
+        }
+
         pub fn print(&self){
             for i in 0..self.data.len() {
                 print!("{},", self.data[i]);
@@ -485,6 +510,22 @@ mod tests {
             let t5 = Tensor { shape: vec![5,4,1], data: vec![1.0; 5*4]};
             let t6 = Tensor { shape: vec![5,4,4], data: vec![2.0; 5*4*4] };
             assert!(t4.add(&t5).equals(&t6));
+        }
+
+        #[test]
+        fn test_transpose(){
+            let t1 = Tensor { shape: vec![3,2], data: vec![1,2,3,4,5,6]};
+            let t2 = Tensor { shape: vec![2,3], data: vec![1,3,5,2,4,6]};
+            assert!(t1.transpose().equals(&t2));
+            assert!(t2.transpose().equals(&t1));
+
+            let t3 = Tensor { shape: vec![3,3], data: vec![1,2,3,4,5,6,7, 8, 9]};
+            let t4 = Tensor { shape: vec![3, 3], data: vec![1,4,7,2,5,8,3,6,9]};
+            assert!(t3.transpose().equals(&t4));
+
+            let t5 = Tensor { shape: vec![3,3,3], data: vec![0, 1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26]};
+            let t6 = Tensor { shape: vec![3,3,3], data: vec![0,9,18,3,12,21,6,15,24,1,10,19,4,13,22,7,16,25,2,11,20,5,14,23,8,17,26]};
+            assert!(t5.transpose().equals(&t6));
         }
     }
 }
