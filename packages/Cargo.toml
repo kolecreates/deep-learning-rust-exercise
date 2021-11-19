@@ -2,5 +2,5 @@
 
 members = [
     "math",
-    "neural"
+    "deep_learning"
 ]
