@@ -171,6 +171,26 @@ pub mod linearalg {
             Tensor { shape: get_shape_from_range(end_indices, start_indices), data: patch }
         }
 
+        pub fn get_along_first_axis(&self, index: usize) -> Tensor<T> {
+            let mut start = vec![0; self.shape.len()];
+            start[0] = index;
+            let mut end = self.shape.clone();
+            end[0] = index;
+            self.get_elements(&start, &end)
+        }
+
+        pub fn set_along_first_axis(&mut self, index: usize, values: &Tensor<T>){
+            let mut start = vec![0; self.shape.len()];
+            start[0] = index;
+            let mut end = self.shape.clone();
+            end[0] = index;
+            self.set_elements(&start, &end, values)
+        }
+
+        pub fn get_element(&self, indices: &Vec<usize>) -> T {
+            self.data[self.flatten_indices(&indices)]
+        }
+
         pub fn multiply(&self, b: &Tensor<T>) -> Tensor<T> {
             let out_shape = Tensor::get_broadcasted_shape(self, b);
             let indices = Tensor::get_indices_for_broadcasting(&out_shape, self, b);
@@ -191,6 +211,24 @@ pub mod linearalg {
             sum
         }
 
+        pub fn sum_last_axis(&self) -> Tensor<T> {
+            let slice_count = get_max_slice_count(&self.shape);
+            let slice_size = self.data.len() / slice_count;
+            let mut sum = vec![T::default(); slice_count];
+            for i in 0..slice_count {
+                let mut s = sum[i];
+                for j in 0..slice_size {
+                    s = s + self.data[i * slice_size + j];
+                }
+                sum[i] = s;
+            }
+
+            let mut new_shape = self.shape[..self.shape.len()-1].to_vec();
+            new_shape.push(1);
+
+            Tensor { shape: new_shape, data: sum }
+        }
+
         pub fn max(&self) -> T {
             let mut max = self.data[0];
             for i in 1..self.data.len(){
@@ -207,6 +245,15 @@ pub mod linearalg {
             let mut output = self.data.clone();
             for i in 0..self.data.len() {
                 output[i] = output[i] / scalar;
+            }
+
+            Tensor { shape: self.shape.clone(), data: output }
+        }
+
+        pub fn scalar_multiply(&self, scalar: T) -> Tensor<T> {
+            let mut output = self.data.clone();
+            for i in 0..self.data.len() {
+                output[i] = output[i] * scalar;
             }
 
             Tensor { shape: self.shape.clone(), data: output }
@@ -526,6 +573,14 @@ mod tests {
             let t5 = Tensor { shape: vec![3,3,3], data: vec![0, 1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26]};
             let t6 = Tensor { shape: vec![3,3,3], data: vec![0,9,18,3,12,21,6,15,24,1,10,19,4,13,22,7,16,25,2,11,20,5,14,23,8,17,26]};
             assert!(t5.transpose().equals(&t6));
+        }
+
+        #[test]
+        fn test_sum_last_axis(){
+            let t1 = Tensor { shape: vec![2,2], data: vec![0,1,0,5]};
+            let t2 = Tensor { shape: vec![2,1], data: vec![1,5]};
+
+            assert!(t1.sum_last_axis().equals(&t2));
         }
     }
 }
