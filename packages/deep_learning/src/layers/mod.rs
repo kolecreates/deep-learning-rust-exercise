@@ -12,9 +12,9 @@ pub use maxpool::MaxPool;
 
 
 pub struct LayerGradients<T> {
-    weights: Tensor<T>,
-    bias: Tensor<T>,
-    input: Tensor<T>,
+    pub weights: Tensor<T>,
+    pub bias: Tensor<T>,
+    pub input: Tensor<T>,
 }
 
 pub trait Layer<T> {

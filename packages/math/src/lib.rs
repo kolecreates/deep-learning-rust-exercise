@@ -6,8 +6,17 @@ pub mod linearalg {
         pub data: Vec<T>
     }
 
+    pub fn tensor_sqrt(t: &Tensor<f32>) -> Tensor<f32> {
+        let mut output = vec![0f32; t.data.len()];
+        for i in 0..t.data.len() {
+            output[i] = t.data[i].sqrt();
+        }
+
+        Tensor { shape: t.shape.clone(), data: output }
+    }
+
     pub fn tensor_exp(t: &Tensor<f32>) -> Tensor<f32> {
-        let mut output = t.data.clone();
+        let mut output = vec![0f32; t.data.len()];
         for i in 0..t.data.len() {
             output[i] = t.data[i].exp();
         }
@@ -230,6 +239,18 @@ pub mod linearalg {
             out
         }
 
+        pub fn divide(&self, b: &Tensor<T>) -> Tensor<T> {
+            let out_shape = Tensor::get_broadcasted_shape(self, b);
+            let indices = Tensor::get_indices_for_broadcasting(&out_shape, self, b);
+            let mut out = Tensor::from_shape(out_shape, T::default());
+            for i in 0..indices.len() {
+                let (a_index, b_index) = indices[i];
+                out.data[i] = self.data[a_index] / b.data[b_index];
+            }
+
+            out
+        }
+
         pub fn sum(&self) -> T {
             let mut sum = self.data[0];
             for i in 1..self.data.len() {
@@ -284,18 +305,27 @@ pub mod linearalg {
         }
 
         pub fn scalar_divide(&self, scalar: T) -> Tensor<T> {
-            let mut output = self.data.clone();
+            let mut output = vec![T::default(); self.data.len()];
             for i in 0..self.data.len() {
-                output[i] = output[i] / scalar;
+                output[i] = self.data[i] / scalar;
             }
 
             Tensor { shape: self.shape.clone(), data: output }
         }
 
         pub fn scalar_multiply(&self, scalar: T) -> Tensor<T> {
-            let mut output = self.data.clone();
+            let mut output = vec![T::default(); self.data.len()];
             for i in 0..self.data.len() {
-                output[i] = output[i] * scalar;
+                output[i] = self.data[i] * scalar;
+            }
+
+            Tensor { shape: self.shape.clone(), data: output }
+        }
+
+        pub fn scalar_add(&self, scalar: T) -> Tensor<T> {
+            let mut output = vec![T::default(); self.data.len()];
+            for i in 0..self.data.len() {
+                output[i] = self.data[i] + scalar;
             }
 
             Tensor { shape: self.shape.clone(), data: output }
@@ -633,6 +663,18 @@ mod tests {
             let e1 = t1.get_element(&indices);
             let e2 = t1.get_element(&vec![1,0,1]);
             assert!(e1 == e2);
+        }
+
+        #[test]
+        fn test_divide(){
+            let t1 = Tensor::from_shape(vec![2,2], 2);
+            let t2 = Tensor::from_shape(vec![2,2], 2);
+            let t3 = Tensor::from_shape(vec![2,2], 1);
+            assert!(t2.divide(&t1).equals(&t3));
+            let t4 = Tensor { shape: vec![5,4], data: vec![3.0; 5*4] };
+            let t5 = Tensor { shape: vec![1], data: vec![2.0]};
+            let t6 = Tensor { shape: vec![5,4], data: vec![1.5; 5*4] };
+            assert!(t4.divide(&t5).equals(&t6));
         }
     }
 }
