@@ -2,10 +2,14 @@
 use math::linearalg::{Tensor};
 
 mod convolution;
-pub use convolution::Conv;
-
 mod dense;
+mod maxpool;
+
+pub use convolution::Conv;
 pub use dense::Dense;
+pub use maxpool::MaxPool;
+
+
 
 pub struct LayerGradients<T> {
     weights: Tensor<T>,

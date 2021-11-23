@@ -83,8 +83,31 @@ pub mod linearalg {
         scaled_index
     }
 
+    pub fn inflate_index(shape: &Vec<usize>, index: usize) -> Vec<usize> {
+        let rank = shape.len();
+        let mut scale = 1;
+        for j in 0..rank-1 {
+            let i = rank - j - 1;
+            scale *= shape[i];
+        }
+
+
+        let mut indices = vec![0; rank];
+        let mut temp = index;
+        for i in 0..rank {
+            indices[i] = temp / scale;
+            temp = temp % scale;
+            if i < rank-1 {
+                scale /= shape[i+1];
+            }
+        }
+
+
+
+        indices
+    }
+
     impl<T:Copy + PartialEq + Mul<Output = T> + Add<Output = T> + Div<Output = T> + PartialOrd + Display + Default> Tensor<T> {
-        
         
         fn flatten_indices(&self, indices: &Vec<usize>) -> usize {
             flatten_indices(&self.shape, indices)
@@ -137,6 +160,10 @@ pub mod linearalg {
                 size *= dim_size;
             }
             Tensor { shape: shape, data: vec![init_value; size] }
+        }
+
+        pub fn empty() -> Tensor<T> {
+            Tensor { shape: vec![], data: vec![] }
         }
 
         pub fn get_rank(&self) -> usize {
@@ -239,6 +266,21 @@ pub mod linearalg {
             }
 
             max
+        }
+
+        pub fn get_indices_of_max(&self) -> Vec<usize> {
+            let mut max = self.data[0];
+            let mut index = 0;
+            for i in 1..self.data.len(){
+                let val = self.data[i];
+                if val > max {
+                    max = val;
+                    index = i;
+                }
+            }
+
+
+            inflate_index(&self.shape, index)
         }
 
         pub fn scalar_divide(&self, scalar: T) -> Tensor<T> {
@@ -425,7 +467,7 @@ pub mod linearalg {
 mod tests {
     
     mod linearalg {
-        use crate::linearalg::{Tensor};
+        use crate::linearalg::{Tensor, inflate_index};
 
         #[test]
         fn test_equals(){
@@ -581,6 +623,16 @@ mod tests {
             let t2 = Tensor { shape: vec![2,1], data: vec![1,5]};
 
             assert!(t1.sum_last_axis().equals(&t2));
+        }
+
+        #[test]
+        fn test_inflate_index(){
+            
+            let t1 = Tensor { shape: vec![3,2,2], data: vec![1,2,3,4,5,6,7,8,9,10,11,12]};
+            let indices = inflate_index(&t1.shape, 5);
+            let e1 = t1.get_element(&indices);
+            let e2 = t1.get_element(&vec![1,0,1]);
+            assert!(e1 == e2);
         }
     }
 }

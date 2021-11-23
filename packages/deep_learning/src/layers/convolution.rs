@@ -76,7 +76,7 @@ impl Layer<f32> for Conv {
                 let mut image_x = 0;
                 let mut output_x = 0;
                 while image_x + filter_size <= image_size {
-                    let filter = self.filters.get_elements(&vec![filter_index, 0, 0, 0], &vec![filter_index, filter_channels, filter_size, filter_size]);
+                    let filter = self.filters.get_along_first_axis(filter_index);
                     let image_patch = input.get_elements(&vec![0, image_y, image_x], &vec![image_channels, image_y+filter_size, image_x+filter_size]);
                     let product = filter.multiply(&image_patch);
                     let product_sum = product.sum();
