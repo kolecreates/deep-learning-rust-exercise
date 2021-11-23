@@ -2,7 +2,7 @@ use math::linearalg::Tensor;
 
 use crate::optimizers::LayerLossGradients;
 
-use super::{Layer};
+use super::{Layer, LayerState};
 
 pub struct MaxPool {
     kernal_size: usize,
@@ -10,6 +10,7 @@ pub struct MaxPool {
 }
 
 impl Layer<f32> for MaxPool {
+    
     fn call(&self, input: &Tensor<f32>) -> Tensor<f32> {
         let image_depth = input.shape[0];
         let image_height = input.shape[1];
@@ -65,5 +66,9 @@ impl Layer<f32> for MaxPool {
         }
 
         (Option::None, input_gradient)
+    }
+
+    fn get_state(&mut self) -> Option<&mut dyn LayerState<f32>> {
+        None
     }
 }

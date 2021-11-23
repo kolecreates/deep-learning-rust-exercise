@@ -13,16 +13,16 @@ impl Model {
         self.layers.push(layer);
     }
 
-    pub fn train(&mut self, num_epochs: usize, batch_size: usize, samples: &Tensor<f32>, labels: &Tensor<f32>) -> f32 {
-
+    pub fn train(&mut self, num_epochs: usize, batch_size: usize, samples: &Tensor<f32>, labels: &Tensor<f32>) {
 
         let sample_count = samples.shape[0];
         let batch_count = sample_count/batch_size;
         let layer_count = self.layers.len();
 
         for epoch_index in 0..num_epochs {
+            let mut cost = 0.0;
             for batch_index in 0..batch_count {
-                let mut cost = 0.0;
+                cost = 0f32;
                 let mut batch_gradients: Vec<LayerLossGradients<f32>> = vec![];
                 for sample_index in 0..batch_size {
                     let scaled_index = batch_index * batch_size + sample_index;
@@ -65,6 +65,8 @@ impl Model {
                     cost += self.loss.compute(model_output, label);
                 }
 
+                cost /= batch_size as f32;
+
                 for i in 0..batch_gradients.len() {
                     let batch_gradient = &mut batch_gradients[i];
                     batch_gradient.bias = batch_gradient.bias.scalar_divide(batch_size as f32);
@@ -73,17 +75,21 @@ impl Model {
 
                 let optimizations = self.optimizer.optimize(&batch_gradients);
 
-                let opt_index = 0;
+                let mut opt_index = 0;
                 for i in 0..layer_count {
                     let layer_index = layer_count - i - 1;
-                    if self.layers[layer_index].update(&optimizations[opt_index]) {
-                        
+                    match self.layers[layer_index].get_state() {
+                        None => {},
+                        Some(state) => {
+                            state.update(&optimizations[opt_index]);
+                            opt_index += 1;
+                        }
                     }
                 }
 
-            }   
+            }  
+            
+            println!("epoch {} - cost {}", epoch_index, cost);
         }
-
-        0.0
     }
 }

@@ -2,23 +2,23 @@ use math::linearalg::Tensor;
 
 use crate::optimizers::LayerLossGradients;
 
-use super::{Layer};
+use super::{Layer, LayerState, StandardLayerState};
 
 pub struct Conv {
     pub step: usize,
-    filters: Tensor<f32>,
-    bias: Tensor<f32>
+    state: StandardLayerState<f32>
 }
 
 impl Layer<f32> for Conv {
+
     fn backprop(&self, input: &Tensor<f32>,  output_gradient: &Tensor<f32>, ) -> (Option<LayerLossGradients<f32>>, Tensor<f32>) {
-        let number_of_filters = self.filters.shape[0];
-        let filter_size = self.filters.shape[2];
+        let number_of_filters = self.state.weights.shape[0];
+        let filter_size = self.state.weights.shape[2];
         let image_channels = input.shape[0];
         let image_size = input.shape[1];
         let mut loss_gradients = LayerLossGradients {
-            weights: Tensor::from_shape(self.filters.shape.clone(), 0.0),
-            bias: Tensor::from_shape(self.bias.shape.clone(), 0.0),
+            weights: Tensor::from_shape(self.state.weights.shape.clone(), 0.0),
+            bias: Tensor::from_shape(self.state.bias.shape.clone(), 0.0),
         };
         let mut input_gradient = Tensor::from_shape(input.shape.clone(), 0.0);
 
@@ -26,7 +26,7 @@ impl Layer<f32> for Conv {
             let mut image_y = 0;
             let mut out_y = 0;
             let mut filter_gradient = loss_gradients.weights.get_along_first_axis(filter_index);
-            let filter = self.filters.get_along_first_axis(filter_index);
+            let filter = self.state.weights.get_along_first_axis(filter_index);
             while image_y + filter_size <= image_size {
                 let mut image_x = 0;
                 let mut out_x = 0;
@@ -59,9 +59,9 @@ impl Layer<f32> for Conv {
         (Some(loss_gradients), input_gradient)
     }
     fn call(&self, input: &Tensor<f32>) -> Tensor<f32> {
-        let number_of_filters = self.filters.shape[0];
-        let filter_channels = self.filters.shape[1];
-        let filter_size = self.filters.shape[2];
+        let number_of_filters = self.state.weights.shape[0];
+        let filter_channels = self.state.weights.shape[1];
+        let filter_size = self.state.weights.shape[2];
         let image_channels = input.shape[0];
         let image_size = input.shape[1];
 
@@ -78,11 +78,11 @@ impl Layer<f32> for Conv {
                 let mut image_x = 0;
                 let mut output_x = 0;
                 while image_x + filter_size <= image_size {
-                    let filter = self.filters.get_along_first_axis(filter_index);
+                    let filter = self.state.weights.get_along_first_axis(filter_index);
                     let image_patch = input.get_elements(&vec![0, image_y, image_x], &vec![image_channels, image_y+filter_size, image_x+filter_size]);
                     let product = filter.multiply(&image_patch);
                     let product_sum = product.sum();
-                    let filter_bias = self.bias.data[filter_index];
+                    let filter_bias = self.state.bias.data[filter_index];
                     output.set_element(&vec![filter_index, output_y, output_x], product_sum + filter_bias);
                     image_x += self.step;
                     output_x += 1;
@@ -93,5 +93,9 @@ impl Layer<f32> for Conv {
         }
 
         output
+    }
+
+    fn get_state(&mut self) -> Option<&mut dyn LayerState<f32>> {
+        Some(&mut self.state)
     }
 }
