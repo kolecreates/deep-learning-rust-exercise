@@ -116,7 +116,7 @@ pub mod linearalg {
         indices
     }
 
-    impl<T:Copy + PartialEq + Mul<Output = T> + Add<Output = T> + Div<Output = T> + PartialOrd + Display + Default> Tensor<T> {
+    impl<T:Copy + PartialEq + Mul<Output = T> + Add<Output = T> + Div<Output = T> + PartialOrd + Display + Default + Sub<Output = T>> Tensor<T> {
         
         fn flatten_indices(&self, indices: &Vec<usize>) -> usize {
             flatten_indices(&self.shape, indices)
@@ -246,6 +246,18 @@ pub mod linearalg {
             for i in 0..indices.len() {
                 let (a_index, b_index) = indices[i];
                 out.data[i] = self.data[a_index] / b.data[b_index];
+            }
+
+            out
+        }
+
+        pub fn sub(&self, b: &Tensor<T>) -> Tensor<T> {
+            let out_shape = Tensor::get_broadcasted_shape(self, b);
+            let indices = Tensor::get_indices_for_broadcasting(&out_shape, self, b);
+            let mut out = Tensor::from_shape(out_shape, T::default());
+            for i in 0..indices.len() {
+                let (a_index, b_index) = indices[i];
+                out.data[i] = self.data[a_index] - b.data[b_index];
             }
 
             out

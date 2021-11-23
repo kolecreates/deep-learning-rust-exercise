@@ -1,6 +1,8 @@
 use math::linearalg::Tensor;
 
-use super::{Layer, LayerGradients};
+use crate::optimizers::LayerLossGradients;
+
+use super::{Layer};
 
 pub struct MaxPool {
     kernal_size: usize,
@@ -37,7 +39,7 @@ impl Layer<f32> for MaxPool {
         output
     }
 
-    fn backprop(&self, input: &Tensor<f32>, output_gradient: &Tensor<f32>,) -> LayerGradients<f32> {
+    fn backprop(&self, input: &Tensor<f32>, output_gradient: &Tensor<f32>,) -> (Option<LayerLossGradients<f32>>, Tensor<f32>){
         
         let mut input_gradient = Tensor::from_shape(input.shape.clone(), 0f32);
 
@@ -62,6 +64,6 @@ impl Layer<f32> for MaxPool {
             }
         }
 
-        LayerGradients { weights: Tensor::empty(), bias: Tensor::empty(), input: input_gradient }
+        (Option::None, input_gradient)
     }
 }

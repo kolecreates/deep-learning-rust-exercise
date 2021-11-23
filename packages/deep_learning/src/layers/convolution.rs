@@ -1,6 +1,8 @@
 use math::linearalg::Tensor;
 
-use super::{Layer, LayerGradients};
+use crate::optimizers::LayerLossGradients;
+
+use super::{Layer};
 
 pub struct Conv {
     pub step: usize,
@@ -9,21 +11,21 @@ pub struct Conv {
 }
 
 impl Layer<f32> for Conv {
-    fn backprop(&self, input: &Tensor<f32>,  output_gradient: &Tensor<f32>, ) -> LayerGradients<f32> {
+    fn backprop(&self, input: &Tensor<f32>,  output_gradient: &Tensor<f32>, ) -> (Option<LayerLossGradients<f32>>, Tensor<f32>) {
         let number_of_filters = self.filters.shape[0];
         let filter_size = self.filters.shape[2];
         let image_channels = input.shape[0];
         let image_size = input.shape[1];
-        let mut gradients = LayerGradients {
+        let mut loss_gradients = LayerLossGradients {
             weights: Tensor::from_shape(self.filters.shape.clone(), 0.0),
             bias: Tensor::from_shape(self.bias.shape.clone(), 0.0),
-            input: Tensor::from_shape(input.shape.clone(), 0.0),
         };
+        let mut input_gradient = Tensor::from_shape(input.shape.clone(), 0.0);
 
         for filter_index in 0..number_of_filters {
             let mut image_y = 0;
             let mut out_y = 0;
-            let mut filter_gradient = gradients.weights.get_along_first_axis(filter_index);
+            let mut filter_gradient = loss_gradients.weights.get_along_first_axis(filter_index);
             let filter = self.filters.get_along_first_axis(filter_index);
             while image_y + filter_size <= image_size {
                 let mut image_x = 0;
@@ -37,9 +39,9 @@ impl Layer<f32> for Conv {
                     filter_gradient = filter_gradient.add(&input_patch.scalar_multiply(output_derivative)); 
 
                     
-                    let mut input_gradient_patch = gradients.input.get_elements(&input_patch_start, &input_patch_end);
+                    let mut input_gradient_patch = input_gradient.get_elements(&input_patch_start, &input_patch_end);
                     input_gradient_patch = input_gradient_patch.add(&filter.scalar_multiply(output_derivative));
-                    gradients.input.set_elements(&input_patch_start, &input_patch_end, &input_gradient_patch);
+                    input_gradient.set_elements(&input_patch_start, &input_patch_end, &input_gradient_patch);
 
                     image_x += self.step;
                     out_x += 1;
@@ -50,11 +52,11 @@ impl Layer<f32> for Conv {
                 out_y += 1;
             }
 
-            gradients.weights.set_along_first_axis(filter_index, &filter_gradient);
-            gradients.bias.data[filter_index] = output_gradient.get_along_first_axis(filter_index).sum();
+            loss_gradients.weights.set_along_first_axis(filter_index, &filter_gradient);
+            loss_gradients.bias.data[filter_index] = output_gradient.get_along_first_axis(filter_index).sum();
         }
 
-        gradients
+        (Some(loss_gradients), input_gradient)
     }
     fn call(&self, input: &Tensor<f32>) -> Tensor<f32> {
         let number_of_filters = self.filters.shape[0];
