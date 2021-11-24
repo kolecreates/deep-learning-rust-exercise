@@ -1,12 +1,19 @@
 use math::linearalg::Tensor;
 
-use crate::optimizers::LayerLossGradients;
+use crate::{initializers::Initializer, optimizers::LayerLossGradients};
 
 use super::{Layer, LayerState, StandardLayerState};
 
 pub struct Conv {
     pub step: usize,
     state: StandardLayerState<f32>
+}
+
+impl Conv {
+    pub fn create(step: usize, shape: &Vec<usize>, filter_initializer: &dyn Initializer<f32>, bias_initializer: &dyn Initializer<f32>) -> Conv {
+        let state = StandardLayerState::create(shape, filter_initializer, bias_initializer);
+        Conv { step, state }
+    }
 }
 
 impl Layer<f32> for Conv {

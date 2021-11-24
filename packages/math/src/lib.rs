@@ -1,6 +1,7 @@
 pub mod linearalg {
     use std::{cmp, fmt::Display, ops::{Add, Div, Mul, Sub}};
-    use rand::{Rng, SeedableRng, prelude::StdRng};
+    use rand::{SeedableRng, distributions::{Uniform}, prelude::{Distribution, StdRng}};
+    use rand_distr::Normal;
 
     pub struct Tensor<T> {
         pub shape: Vec<usize>,
@@ -32,6 +33,15 @@ pub mod linearalg {
         }
 
         Tensor { shape: t.shape.clone(), data: output }
+    }
+
+    pub fn vec_product<T: Mul<Output = T> + Copy>(v: &Vec<T>) -> T {
+        let mut prod = v[0];
+        for i in 1..v.len() {
+            prod = prod * v[i];
+        }
+
+        prod
     }
 
     fn subtract<T: Sub<Output = T> + Copy>(a: &Vec<T>, b: &Vec<T>) -> Vec<T> {
@@ -117,6 +127,33 @@ pub mod linearalg {
         indices
     }
 
+    impl Tensor<f32> {
+        pub fn from_normal_distribution(shape: &Vec<usize>, seed: u64, mean: f32, stand_dev: f32) -> Tensor<f32> {
+            let mut rng = StdRng::seed_from_u64(seed);
+            let dist = Normal::new(mean, stand_dev).unwrap();
+
+            let mut out = Tensor::from_shape(shape.clone(), 0f32);
+
+            for i in 0..out.data.len() {
+                out.data[i] = dist.sample(&mut rng);
+            }
+            
+            out
+
+        }
+    }
+
+    impl<T: Clone> Tensor<T> {
+        pub fn flatten(&self) -> Tensor<T> {
+            Tensor { shape: vec![self.data.len()], data: self.data.clone() }
+        }
+
+        pub fn reshape(&self, shape: &Vec<usize>) -> Tensor<T> {
+            Tensor { shape: shape.clone(), data: self.data.clone() }
+        }
+    }
+    
+
     impl<T:Copy + PartialEq + Mul<Output = T> + Add<Output = T> + Div<Output = T> + PartialOrd + Display + Default + Sub<Output = T>> Tensor<T> {
         
         fn flatten_indices(&self, indices: &Vec<usize>) -> usize {
@@ -164,11 +201,7 @@ pub mod linearalg {
         }
 
         pub fn from_shape(shape: Vec<usize>, init_value: T) -> Tensor<T> {
-            let mut size = 1;
-            for i in 0..shape.len() {
-                let dim_size = shape[i];
-                size *= dim_size;
-            }
+            let size = vec_product(&shape);
             Tensor { shape: shape, data: vec![init_value; size] }
         }
 
@@ -449,10 +482,6 @@ pub mod linearalg {
             out
         }
 
-        pub fn flatten(&self) -> Tensor<T> {
-            Tensor { shape: vec![self.data.len()], data: self.data.clone() }
-        }
-
         pub fn transpose(&self) -> Tensor<T> {
             let mut out_shape = self.shape.clone();
             out_shape.reverse();
@@ -506,11 +535,10 @@ pub mod linearalg {
 
         pub fn shuffle_first_axis(&mut self, seed: u64){
             let mut rng = StdRng::seed_from_u64(seed);
-            
-
             let first_axis_len = self.shape[0];
+            let dist = Uniform::from(0..first_axis_len);
             for _i in 0..first_axis_len-1 {
-                let random_index = rng.gen_range(0..first_axis_len);
+                let random_index = dist.sample(&mut rng);
                 if random_index == 0 {
                     continue;
                 }
@@ -710,7 +738,7 @@ mod tests {
         #[test]
         fn test_shuffle_first_axis(){
             let mut t1 = Tensor { shape: vec![4,2], data: vec![1,2,3,4,5,6,7,8] };
-            let t2 = Tensor { shape: vec![4,2], data: vec![5,6,1,2,3,4,7,8] };
+            let t2 = Tensor { shape: vec![4,2], data: vec![3,4,5,6,7,8,1,2] };
             t1.shuffle_first_axis(1);
             assert!(t1.equals(&t2));
 
@@ -723,6 +751,15 @@ mod tests {
             t1.shuffle_first_axis(1);
             t4.shuffle_first_axis(2);
             assert!(!t1.equals(&t3));
+        }
+
+        #[test]
+        fn test_from_normal_distribution(){
+            let t1 = Tensor::from_normal_distribution(&vec![4,2], 1, 0f32, 0.1);
+            let t2 = Tensor::from_normal_distribution(&vec![4,2], 1, 0f32, 0.1);
+            let t3 = Tensor { shape: vec![4,2], data: vec![0.16636272,0.07406675,-0.012714212,-0.061318047,-0.09101285,0.19184418,-0.01532239,0.04348835]};
+            assert!(t1.equals(&t2));
+            assert!(t1.equals(&t3));
         }
     }
 }

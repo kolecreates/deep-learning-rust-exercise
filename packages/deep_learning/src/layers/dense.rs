@@ -1,11 +1,18 @@
 use math::linearalg::Tensor;
 
-use crate::{optimizers::LayerLossGradients};
+use crate::{initializers::Initializer, optimizers::LayerLossGradients};
 
 use super::{Layer, LayerState, StandardLayerState};
 
 pub struct Dense {
     state: StandardLayerState<f32>,
+}
+
+impl Dense {
+    pub fn create(shape: &Vec<usize>, weight_initializer: &dyn Initializer<f32>, bias_initializer: &dyn Initializer<f32>) -> Dense {
+        let state = StandardLayerState::create(shape, weight_initializer, bias_initializer);
+        Dense { state }
+    }
 }
 
 impl Layer<f32> for Dense {

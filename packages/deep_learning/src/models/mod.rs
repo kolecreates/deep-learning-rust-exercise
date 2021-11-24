@@ -1,19 +1,21 @@
+pub mod cnn;
+
 use math::linearalg::Tensor;
 
 use crate::{layers::{Layer}, losses::Loss, optimizers::{LayerLossGradients, Optimizer}};
 
-pub struct Model{
-    layers: Vec<Box<dyn Layer<f32>>>,
-    loss: Box<dyn Loss>,
-    optimizer: dyn Optimizer<f32>,
+pub trait Model {
+    fn train(&mut self, num_epochs: usize, batch_size: usize, samples: &mut Tensor<f32>, labels: &mut Tensor<f32>, seed:u64);
 }
 
-impl Model {
-    pub fn add_layer(&mut self, layer: Box<dyn Layer<f32>>) {
-        self.layers.push(layer);
-    }
+pub struct SequentialModel<'a> {
+    layers: Vec<&'a mut dyn Layer<f32>>,
+    loss: &'a dyn Loss,
+    optimizer: &'a mut dyn Optimizer<f32>,
+}
 
-    pub fn train(&mut self, num_epochs: usize, batch_size: usize, samples: &mut Tensor<f32>, labels: &mut Tensor<f32>, seed:u64) {
+impl<'a> Model for SequentialModel<'a> {
+    fn train(&mut self, num_epochs: usize, batch_size: usize, samples: &mut Tensor<f32>, labels: &mut Tensor<f32>, seed:u64) {
 
         let sample_count = samples.shape[0];
         let batch_count = sample_count/batch_size;

@@ -27,6 +27,10 @@ pub struct AdamOptimizer {
 }
 
 impl AdamOptimizer {
+    pub fn create(learning_rate: f32, beta1: f32, beta2: f32, epsilon: f32) -> AdamOptimizer {
+        AdamOptimizer { moment_w1: vec![], moment_w2: vec![], moment_b1: vec![], moment_b2: vec![], learning_rate, beta1, beta2, epsilon }
+    }
+
     fn calc_moment_1(&self, moment1: &Tensor<f32>, gradient: &Tensor<f32>) -> Tensor<f32> {
         moment1.scalar_multiply(self.beta1).add(&gradient.scalar_multiply(1.0-self.beta1))
     }

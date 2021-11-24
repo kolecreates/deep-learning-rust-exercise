@@ -5,8 +5,8 @@ use crate::optimizers::LayerLossGradients;
 use super::{Layer, LayerState};
 
 pub struct MaxPool {
-    kernal_size: usize,
-    stride: usize,
+    pub kernal_size: usize,
+    pub stride: usize,
 }
 
 impl Layer<f32> for MaxPool {
