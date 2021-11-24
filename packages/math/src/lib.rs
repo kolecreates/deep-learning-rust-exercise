@@ -157,6 +157,10 @@ pub mod linearalg {
         pub fn reshape(&self, shape: &Vec<usize>) -> Tensor<T> {
             Tensor { shape: shape.clone(), data: self.data.clone() }
         }
+        pub fn from_shape(shape: Vec<usize>, init_value: T) -> Tensor<T> {
+            let size = vec_product(&shape);
+            Tensor { shape: shape, data: vec![init_value; size] }
+        }
     }
     
 
@@ -204,11 +208,6 @@ pub mod linearalg {
             }
 
             output
-        }
-
-        pub fn from_shape(shape: Vec<usize>, init_value: T) -> Tensor<T> {
-            let size = vec_product(&shape);
-            Tensor { shape: shape, data: vec![init_value; size] }
         }
 
         pub fn get_rank(&self) -> usize {

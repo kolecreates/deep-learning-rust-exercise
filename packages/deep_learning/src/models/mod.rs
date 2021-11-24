@@ -4,8 +4,8 @@ use math::linearalg::Tensor;
 
 use crate::{layers::{Layer}, losses::Loss, optimizers::{LayerLossGradients, Optimizer}};
 
-pub trait Model {
-    fn train(&mut self, num_epochs: usize, batch_size: usize, samples: &mut Tensor<f32>, labels: &mut Tensor<f32>, seed:u64);
+pub trait Model<T, U> {
+    fn train(&mut self, num_epochs: usize, batch_size: usize, samples: &mut Tensor<T>, labels: &mut Tensor<U>, seed:u64);
 }
 
 pub struct SequentialModel<'a> {
@@ -14,7 +14,7 @@ pub struct SequentialModel<'a> {
     optimizer: &'a mut dyn Optimizer<f32>,
 }
 
-impl<'a> Model for SequentialModel<'a> {
+impl<'a> Model<f32, f32> for SequentialModel<'a> {
     fn train(&mut self, num_epochs: usize, batch_size: usize, samples: &mut Tensor<f32>, labels: &mut Tensor<f32>, seed:u64) {
 
         let sample_count = samples.shape[0];
@@ -94,6 +94,7 @@ impl<'a> Model for SequentialModel<'a> {
                     }
                 }
 
+                println!("batch {} - cost {}", batch_index, cost);
             }  
             
             println!("epoch {} - cost {}", epoch_index, cost);
