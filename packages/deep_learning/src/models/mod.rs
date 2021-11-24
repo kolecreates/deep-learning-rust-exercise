@@ -13,7 +13,7 @@ impl Model {
         self.layers.push(layer);
     }
 
-    pub fn train(&mut self, num_epochs: usize, batch_size: usize, samples: &Tensor<f32>, labels: &Tensor<f32>) {
+    pub fn train(&mut self, num_epochs: usize, batch_size: usize, samples: &mut Tensor<f32>, labels: &mut Tensor<f32>, seed:u64) {
 
         let sample_count = samples.shape[0];
         let batch_count = sample_count/batch_size;
@@ -21,6 +21,8 @@ impl Model {
 
         for epoch_index in 0..num_epochs {
             let mut cost = 0.0;
+            samples.shuffle_first_axis(seed);
+            labels.shuffle_first_axis(seed);
             for batch_index in 0..batch_count {
                 cost = 0f32;
                 let mut batch_gradients: Vec<LayerLossGradients<f32>> = vec![];

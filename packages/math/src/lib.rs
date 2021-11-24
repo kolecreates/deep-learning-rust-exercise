@@ -1,5 +1,6 @@
 pub mod linearalg {
     use std::{cmp, fmt::Display, ops::{Add, Div, Mul, Sub}};
+    use rand::{Rng, SeedableRng, prelude::StdRng};
 
     pub struct Tensor<T> {
         pub shape: Vec<usize>,
@@ -502,6 +503,23 @@ pub mod linearalg {
 
             return true;
         }
+
+        pub fn shuffle_first_axis(&mut self, seed: u64){
+            let mut rng = StdRng::seed_from_u64(seed);
+            
+
+            let first_axis_len = self.shape[0];
+            for _i in 0..first_axis_len-1 {
+                let random_index = rng.gen_range(0..first_axis_len);
+                if random_index == 0 {
+                    continue;
+                }
+
+                let temp = self.get_along_first_axis(0);
+                self.set_along_first_axis(0, &self.get_along_first_axis(random_index));
+                self.set_along_first_axis(random_index, &temp);
+            }
+        }
     }
 }
 
@@ -687,6 +705,24 @@ mod tests {
             let t5 = Tensor { shape: vec![1], data: vec![2.0]};
             let t6 = Tensor { shape: vec![5,4], data: vec![1.5; 5*4] };
             assert!(t4.divide(&t5).equals(&t6));
+        }
+
+        #[test]
+        fn test_shuffle_first_axis(){
+            let mut t1 = Tensor { shape: vec![4,2], data: vec![1,2,3,4,5,6,7,8] };
+            let t2 = Tensor { shape: vec![4,2], data: vec![5,6,1,2,3,4,7,8] };
+            t1.shuffle_first_axis(1);
+            assert!(t1.equals(&t2));
+
+            let mut t3 = t1.clone();
+            t1.shuffle_first_axis(1);
+            t3.shuffle_first_axis(1);
+            assert!(t1.equals(&t3));
+
+            let mut t4 = t1.clone();
+            t1.shuffle_first_axis(1);
+            t4.shuffle_first_axis(2);
+            assert!(!t1.equals(&t3));
         }
     }
 }
