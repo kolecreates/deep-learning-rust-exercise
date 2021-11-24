@@ -46,7 +46,11 @@ impl Model {
                         let layer = &self.layers[layer_index];
                         let layer_input = &outputs[outputs.len()-2];
                         let (loss_gradients_option, input_gradient)  = layer.backprop(layer_input, &output_gradient);
-                        output_gradient = input_gradient;
+                        
+                        match input_gradient {
+                            None => {},
+                            Some(grad)=> output_gradient = grad,
+                        }
 
                         match loss_gradients_option {
                             None => {},

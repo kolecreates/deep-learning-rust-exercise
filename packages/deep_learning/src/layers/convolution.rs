@@ -11,7 +11,7 @@ pub struct Conv {
 
 impl Layer<f32> for Conv {
 
-    fn backprop(&self, input: &Tensor<f32>,  output_gradient: &Tensor<f32>, ) -> (Option<LayerLossGradients<f32>>, Tensor<f32>) {
+    fn backprop(&self, input: &Tensor<f32>,  output_gradient: &Tensor<f32>, ) -> (Option<LayerLossGradients<f32>>, Option<Tensor<f32>>) {
         let number_of_filters = self.state.weights.shape[0];
         let filter_size = self.state.weights.shape[2];
         let image_channels = input.shape[0];
@@ -56,7 +56,7 @@ impl Layer<f32> for Conv {
             loss_gradients.bias.data[filter_index] = output_gradient.get_along_first_axis(filter_index).sum();
         }
 
-        (Some(loss_gradients), input_gradient)
+        (Some(loss_gradients), Some(input_gradient))
     }
     fn call(&self, input: &Tensor<f32>) -> Tensor<f32> {
         let number_of_filters = self.state.weights.shape[0];

@@ -40,7 +40,7 @@ impl Layer<f32> for MaxPool {
         output
     }
 
-    fn backprop(&self, input: &Tensor<f32>, output_gradient: &Tensor<f32>,) -> (Option<LayerLossGradients<f32>>, Tensor<f32>){
+    fn backprop(&self, input: &Tensor<f32>, output_gradient: &Tensor<f32>,) -> (Option<LayerLossGradients<f32>>, Option<Tensor<f32>>){
         
         let mut input_gradient = Tensor::from_shape(input.shape.clone(), 0f32);
 
@@ -65,7 +65,7 @@ impl Layer<f32> for MaxPool {
             }
         }
 
-        (Option::None, input_gradient)
+        (None, Some(input_gradient))
     }
 
     fn get_state(&mut self) -> Option<&mut dyn LayerState<f32>> {

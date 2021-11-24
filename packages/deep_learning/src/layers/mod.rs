@@ -14,7 +14,7 @@ use crate::optimizers::{LayerLossGradients, LayerOptimizations};
 
 pub trait Layer<T> {
     fn call(&self, input: &Tensor<T>) -> Tensor<T>;
-    fn backprop(&self, input: &Tensor<T>, output_gradient: &Tensor<T>,) -> (Option<LayerLossGradients<T>>, Tensor<T>);
+    fn backprop(&self, input: &Tensor<T>, output_gradient: &Tensor<T>,) -> (Option<LayerLossGradients<T>>, Option<Tensor<T>>);
     fn get_state(&mut self) -> Option<&mut dyn LayerState<T>>;
 }
 
