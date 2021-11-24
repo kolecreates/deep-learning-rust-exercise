@@ -127,6 +127,12 @@ pub mod linearalg {
         indices
     }
 
+    impl<T> Tensor<T> {
+        pub fn empty() -> Tensor<T> {
+            Tensor { shape: vec![], data: vec![] }
+        }
+    }
+
     impl Tensor<f32> {
         pub fn from_normal_distribution(shape: &Vec<usize>, seed: u64, mean: f32, stand_dev: f32) -> Tensor<f32> {
             let mut rng = StdRng::seed_from_u64(seed);
@@ -203,10 +209,6 @@ pub mod linearalg {
         pub fn from_shape(shape: Vec<usize>, init_value: T) -> Tensor<T> {
             let size = vec_product(&shape);
             Tensor { shape: shape, data: vec![init_value; size] }
-        }
-
-        pub fn empty() -> Tensor<T> {
-            Tensor { shape: vec![], data: vec![] }
         }
 
         pub fn get_rank(&self) -> usize {
@@ -656,7 +658,6 @@ mod tests {
             let a = Tensor { shape: vec![2, 3], data: vec![3.0,4.0,5.0,6.0,7.0,8.0]};
             let b = Tensor { shape: vec![3, 2], data: vec![10.0,11.0,12.0,13.0,14.0,15.0]};
             let product = a.dot(&b);
-            product.print();
             assert!(product.equals(&Tensor { shape: vec![2,2], data: vec![148.0, 160.0, 256.0, 277.0]}))
         }
 
