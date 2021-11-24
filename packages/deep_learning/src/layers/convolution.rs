@@ -32,8 +32,8 @@ impl Layer<f32> for Conv {
         for filter_index in 0..number_of_filters {
             let mut image_y = 0;
             let mut out_y = 0;
-            let mut filter_gradient = loss_gradients.weights.get_along_first_axis(filter_index);
-            let filter = self.state.weights.get_along_first_axis(filter_index);
+            let mut filter_gradient = loss_gradients.weights.get_at_first_axis_index(filter_index);
+            let filter = self.state.weights.get_at_first_axis_index(filter_index);
             while image_y + filter_size <= image_size {
                 let mut image_x = 0;
                 let mut out_x = 0;
@@ -59,8 +59,8 @@ impl Layer<f32> for Conv {
                 out_y += 1;
             }
 
-            loss_gradients.weights.set_along_first_axis(filter_index, &filter_gradient);
-            loss_gradients.bias.data[filter_index] = output_gradient.get_along_first_axis(filter_index).sum();
+            loss_gradients.weights.set_at_first_axis_index(filter_index, &filter_gradient);
+            loss_gradients.bias.data[filter_index] = output_gradient.get_at_first_axis_index(filter_index).sum();
         }
 
         (Some(loss_gradients), Some(input_gradient))
@@ -81,11 +81,14 @@ impl Layer<f32> for Conv {
         for filter_index in 0..number_of_filters {
             let mut image_y = 0;
             let mut output_y = 0;
+            // if filter_index == 0 {
+            //     println!("rank {} input shape: {} {} {}", input.get_rank(), input.shape[0], input.shape[1], input.shape[2]);
+            // }
             while image_y + filter_size <= image_size {
                 let mut image_x = 0;
                 let mut output_x = 0;
                 while image_x + filter_size <= image_size {
-                    let filter = self.state.weights.get_along_first_axis(filter_index);
+                    let filter = self.state.weights.get_at_first_axis_index(filter_index);
                     let image_patch = input.get_elements(&vec![0, image_y, image_x], &vec![image_channels, image_y+filter_size, image_x+filter_size]);
                     let product = filter.multiply(&image_patch);
                     let product_sum = product.sum();

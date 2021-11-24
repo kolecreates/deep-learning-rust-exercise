@@ -230,19 +230,25 @@ pub mod linearalg {
         }
 
         pub fn get_elements(&self, start_indices: &Vec<usize>, end_indices: &Vec<usize>) -> Tensor<T> {
-            let mut patch: Vec<T> = vec![];
-            let indices_of_slices = self.get_indices_of_slices(start_indices, end_indices);
-            for slice_num in 0..indices_of_slices.len() {
-                let (slice_start, slice_end) = indices_of_slices[slice_num];
-                let slice = &self.data[slice_start..slice_end];
-                patch.extend_from_slice(slice);
-            }
-            
+            let mut out = Tensor::from_shape(get_shape_from_range(end_indices, start_indices), T::default());
 
-            Tensor { shape: get_shape_from_range(end_indices, start_indices), data: patch }
+
+            let mut i = 0;
+            let mut offets = vec![0; out.get_rank()];
+            while i < out.data.len() {
+                let mut indices = vec![0; out.get_rank()];
+                for i in 0..indices.len(){
+                    indices[i] = start_indices[i] + offets[i];
+                }
+                out.data[i] = self.data[self.flatten_indices(&indices)];
+                inc_indices(&out.shape, &mut offets);
+                i += 1;
+            }
+
+            out
         }
 
-        pub fn get_along_first_axis(&self, index: usize) -> Tensor<T> {
+        pub fn get_at_first_axis_index(&self, index: usize) -> Tensor<T> {
             let mut start = vec![0; self.shape.len()];
             start[0] = index;
             let mut end = self.shape.clone();
@@ -250,7 +256,7 @@ pub mod linearalg {
             self.get_elements(&start, &end)
         }
 
-        pub fn set_along_first_axis(&mut self, index: usize, values: &Tensor<T>){
+        pub fn set_at_first_axis_index(&mut self, index: usize, values: &Tensor<T>){
             let mut start = vec![0; self.shape.len()];
             start[0] = index;
             let mut end = self.shape.clone();
@@ -544,9 +550,9 @@ pub mod linearalg {
                     continue;
                 }
 
-                let temp = self.get_along_first_axis(0);
-                self.set_along_first_axis(0, &self.get_along_first_axis(random_index));
-                self.set_along_first_axis(random_index, &temp);
+                let temp = self.get_at_first_axis_index(0);
+                self.set_at_first_axis_index(0, &self.get_at_first_axis_index(random_index));
+                self.set_at_first_axis_index(random_index, &temp);
             }
         }
     }
@@ -600,6 +606,14 @@ mod tests {
             let t2 = t1.get_elements(&vec![0,0],  &vec![0,2]);
             let t3 = Tensor { shape: vec![1,2], data: vec![1,2]};
             assert!(t2.equals(&t3));
+        }
+
+        #[test]
+        fn test_get_elements() {
+            let t1 = Tensor { shape: vec![3, 2, 2], data: vec![1,2,3,4,5,6,7,8,9,10,11,12]};
+            assert!(t1.get_elements(&vec![0, 0, 0], &vec![3,2,2]).equals(&t1));
+            let t2 = Tensor { shape: vec![3,1,1], data:vec![1,5,9]};
+            assert!(t1.get_elements(&vec![0,0,0], &vec![3,1,1]).equals(&t2));
         }
 
         #[test]

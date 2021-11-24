@@ -30,13 +30,13 @@ impl<'a> Model<f32, f32> for SequentialModel<'a> {
                 let mut batch_gradients: Vec<LayerLossGradients<f32>> = vec![];
                 for sample_index in 0..batch_size {
                     let scaled_index = batch_index * batch_size + sample_index;
-                    let mut outputs: Vec<Tensor<f32>> = vec![samples.get_along_first_axis(scaled_index)];
+                    let mut outputs: Vec<Tensor<f32>> = vec![samples.get_at_first_axis_index(scaled_index)];
                     for layer_index in 0..layer_count {
                         let layer = &self.layers[layer_index];
                         outputs.push(layer.call(&outputs[outputs.len()-1]));
                     }
 
-                    let label = &labels.get_along_first_axis(scaled_index);
+                    let label = &labels.get_at_first_axis_index(scaled_index);
                     let model_output = &outputs[outputs.len()-1];
 
                     let mut output_gradient = model_output.sub(label);

@@ -14,6 +14,8 @@ pub fn run(){
     }
     let mut labels = parse_u8_tensor_from_idx_file("../../assets/mnist-train-labels");
 
+    println!("Loaded Training Data...");
+
     classifer.train(1, 32, &mut samples, &mut labels, 1);
 }
 

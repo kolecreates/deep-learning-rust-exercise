@@ -84,7 +84,7 @@ mod tests {
     #[test]
     fn test_save_tensor_as_image(){
         let t1 = parse_u8_tensor_from_idx_file("../../assets/mnist-train-images");
-        let image = t1.get_along_first_axis(0);
+        let image = t1.get_at_first_axis_index(0);
         assert!(image.shape[0] == 1 && image.shape[1] == 28 && image.shape[2] == 28);
         save_tensor_as_image(&image, "../../assets/test_save_tensor_as_image.png");
     }
