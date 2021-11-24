@@ -1,9 +1,22 @@
 use crate::{initializers::{VarianceScaling, Zeros}, layers, losses::CategoricalCrossEntropy, models::{Model, SequentialModel}, optimizers::AdamOptimizer};
 
-pub struct CNNModel;
+pub struct CNNModel {
+    conv_1: layers::Conv,
+    relu_1: layers::activations::ReLU,
+    conv_2: layers::Conv,
+    relu_2: layers::activations::ReLU,
+    pooling: layers::MaxPool,
+    flatten: layers::Flatten,
+    dense_1: layers::Dense,
+    relu_3: layers::activations::ReLU,
+    dense_2: layers::Dense,
+    softmax: layers::activations::Softmax,
+    optimizer: AdamOptimizer,
+    loss: CategoricalCrossEntropy,
+}
 
-impl Model for CNNModel {
-    fn train(&mut self, num_epochs: usize, batch_size: usize, samples: &mut math::linearalg::Tensor<f32>, labels: &mut math::linearalg::Tensor<f32>, seed:u64) {
+impl CNNModel {
+    pub fn create() -> CNNModel {
         let conv_step = 1;
         let num_filters_1 = 8;
         let num_filters_2 = 8;
@@ -15,33 +28,42 @@ impl Model for CNNModel {
         let conv_shape_2 = vec![num_filters_2, num_filters_1, filter_size, filter_size];
         let dense_shape_1 = vec![128,800];
         let dense_shape_2 = vec![10, 128];
-        let mut conv_1 = layers::Conv::create(conv_step, &conv_shape_1, &weight_initializer, &bias_initializer);
-        let mut relu_1 = layers::activations::ReLU;
-        let mut conv_2 = layers::Conv::create(conv_step, &conv_shape_2, &weight_initializer, &bias_initializer);
-        let mut relu_2 = layers::activations::ReLU;
-        let mut pooling = layers::MaxPool{ kernal_size: 2, stride: 2 };
-        let mut flatten = layers::Flatten;
-        let mut dense_1 = layers::Dense::create(&dense_shape_1, &weight_initializer, &bias_initializer);
-        let mut relu_3 = layers::activations::ReLU;
-        let mut dense_2 = layers::Dense::create(&dense_shape_2, &weight_initializer, &bias_initializer);
-        let mut softmax = layers::activations::Softmax;
+        CNNModel {
+            conv_1: layers::Conv::create(conv_step, &conv_shape_1, &weight_initializer, &bias_initializer),
+            relu_1: layers::activations::ReLU,
+            conv_2: layers::Conv::create(conv_step, &conv_shape_2, &weight_initializer, &bias_initializer),
+            relu_2: layers::activations::ReLU,
+            pooling: layers::MaxPool{ kernal_size: 2, stride: 2 },
+            flatten: layers::Flatten,
+            dense_1: layers::Dense::create(&dense_shape_1, &weight_initializer, &bias_initializer),
+            relu_3: layers::activations::ReLU,
+            dense_2: layers::Dense::create(&dense_shape_2, &weight_initializer, &bias_initializer),
+            softmax: layers::activations::Softmax,
+            optimizer: AdamOptimizer::create(0.01, 0.95, 0.99, 1e-7),
+            loss: CategoricalCrossEntropy,
+        }
+        
+    }
+}
 
-        let mut optimizer = AdamOptimizer::create(0.01, 0.95, 0.99, 1e-7);
+impl Model for CNNModel {
+    fn train(&mut self, num_epochs: usize, batch_size: usize, samples: &mut math::linearalg::Tensor<f32>, labels: &mut math::linearalg::Tensor<f32>, seed:u64) {
+        
         let mut model = SequentialModel { 
             layers: vec![
-                &mut conv_1,
-                &mut relu_1,
-                &mut conv_2,
-                &mut relu_2,
-                &mut pooling,
-                &mut flatten,
-                &mut dense_1,
-                &mut relu_3,
-                &mut dense_2,
-                &mut softmax,
+                &mut self.conv_1,
+                &mut self.relu_1,
+                &mut self.conv_2,
+                &mut self.relu_2,
+                &mut self.pooling,
+                &mut self.flatten,
+                &mut self.dense_1,
+                &mut self.relu_3,
+                &mut self.dense_2,
+                &mut self.softmax,
             ], 
-            loss: &CategoricalCrossEntropy, 
-            optimizer: &mut optimizer,
+            loss: &self.loss, 
+            optimizer: &mut self.optimizer,
         };
 
         model.train(num_epochs, batch_size, samples, labels, seed);
