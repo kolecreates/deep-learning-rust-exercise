@@ -4,6 +4,7 @@ use math::linearalg::{Tensor};
 mod convolution;
 mod dense;
 mod maxpool;
+pub mod activations;
 
 pub use convolution::Conv;
 pub use dense::Dense;

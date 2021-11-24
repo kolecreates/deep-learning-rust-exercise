@@ -1,6 +1,6 @@
 use math::linearalg::Tensor;
 
-use crate::optimizers::LayerLossGradients;
+use crate::{optimizers::LayerLossGradients};
 
 use super::{Layer, LayerState, StandardLayerState};
 
@@ -18,8 +18,6 @@ impl Layer<f32> for Dense {
             weights: output_gradient.dot(&input.transpose()),
             bias: output_gradient.sum_last_axis(),
         }), self.state.weights.transpose().dot(&output_gradient))
-
-
     }
 
     fn get_state(&mut self) -> Option<&mut dyn LayerState<f32>> {

@@ -31,8 +31,7 @@ impl Model {
                     let mut outputs: Vec<Tensor<f32>> = vec![samples.get_along_first_axis(scaled_index)];
                     for layer_index in 0..layer_count {
                         let layer = &self.layers[layer_index];
-                        let layer_input = &outputs[outputs.len()-1];
-                        outputs.push(layer.call(layer_input));
+                        outputs.push(layer.call(&outputs[outputs.len()-1]));
                     }
 
                     let label = &labels.get_along_first_axis(scaled_index);
