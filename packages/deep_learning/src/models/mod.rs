@@ -1,6 +1,6 @@
 pub mod cnn;
 
-use math::linearalg::Tensor;
+use math::linearalg::{Tensor, print_vec};
 
 use crate::{layers::{Layer}, losses::Loss, optimizers::{LayerLossGradients, Optimizer}};
 
@@ -22,16 +22,20 @@ impl<'a> Model<f32, f32> for SequentialModel<'a> {
         let layer_count = self.layers.len();
 
         for epoch_index in 0..num_epochs {
+            println!("epoch start {}", epoch_index);
             let mut cost = 0.0;
-            samples.shuffle_first_axis(seed);
-            labels.shuffle_first_axis(seed);
+            // samples.shuffle_first_axis(seed);
+            // labels.shuffle_first_axis(seed);
             for batch_index in 0..batch_count {
+                println!("batch start {}", batch_index);
                 cost = 0f32;
                 let mut batch_gradients: Vec<LayerLossGradients<f32>> = vec![];
                 for sample_index in 0..batch_size {
+                    println!("sample start {}", sample_index);
                     let scaled_index = batch_index * batch_size + sample_index;
                     let mut outputs: Vec<Tensor<f32>> = vec![samples.get_at_first_axis_index(scaled_index)];
                     for layer_index in 0..layer_count {
+                        println!("layer start {}", layer_index);
                         let layer = &self.layers[layer_index];
                         outputs.push(layer.call(&outputs[outputs.len()-1]));
                     }
@@ -43,11 +47,12 @@ impl<'a> Model<f32, f32> for SequentialModel<'a> {
 
                     let mut j = 0;
 
+                    println!("OUTPUTS SIZE {}", outputs.len());
+
                     for i in 0..layer_count {
                         let layer_index = layer_count - i - 1;
-                        let layer = &self.layers[layer_index];
-                        let layer_input = &outputs[outputs.len()-2];
-                        let (loss_gradients_option, input_gradient)  = layer.backprop(layer_input, &output_gradient);
+                        let layer_input = &outputs[outputs.len()-i-3];
+                        let (loss_gradients_option, input_gradient)  = self.layers[layer_index].backprop(layer_input, &output_gradient);
                         
                         match input_gradient {
                             None => {},

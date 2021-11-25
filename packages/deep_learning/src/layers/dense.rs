@@ -1,4 +1,4 @@
-use math::linearalg::Tensor;
+use math::linearalg::{Tensor, print_vec};
 
 use crate::{initializers::Initializer, optimizers::LayerLossGradients};
 
@@ -21,10 +21,11 @@ impl Layer<f32> for Dense {
     }
 
     fn backprop(&self, input: &Tensor<f32>, output_gradient: &Tensor<f32>, ) -> (Option<LayerLossGradients<f32>>, Option<Tensor<f32>>) {
+        let input_gradient = self.state.weights.transpose().dot(&output_gradient);
         (Some(LayerLossGradients {
             weights: output_gradient.dot(&input.transpose()),
             bias: output_gradient.sum_last_axis(),
-        }), Some(self.state.weights.transpose().dot(&output_gradient)))
+        }), Some(input_gradient))
     }
 
     fn get_state(&mut self) -> Option<&mut dyn LayerState<f32>> {

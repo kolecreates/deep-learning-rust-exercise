@@ -1,4 +1,4 @@
-use math::linearalg::{Tensor, tensor_exp};
+use math::linearalg::{Tensor, print_vec, tensor_exp};
 
 use super::Layer;
 
@@ -7,7 +7,7 @@ pub struct Softmax;
 impl Layer<f32> for Softmax {
     fn call(&self, input: &Tensor<f32>) -> Tensor<f32> {
         let output = tensor_exp(&input);
-        output.scalar_divide(output.sum())
+        output.scalar_divide(output.sum()).flatten()
     }
 
     fn backprop(&self, _input: &Tensor<f32>, _output_gradient: &Tensor<f32>,) -> (Option<crate::optimizers::LayerLossGradients<f32>>, Option<Tensor<f32>>) {
@@ -42,7 +42,9 @@ impl Layer<f32> for ReLU {
     }
 
     fn backprop(&self, input: &Tensor<f32>, output_gradient: &Tensor<f32>,) -> (Option<crate::optimizers::LayerLossGradients<f32>>, Option<Tensor<f32>>) {
-        (None, Some(ReLU::clamp(input, output_gradient)))
+        print_vec(&output_gradient.shape);
+        print_vec(&input.shape);
+        (None, Some(ReLU::clamp(output_gradient, input)))
     }
 
     fn get_state(&mut self) -> Option<&mut dyn super::LayerState<f32>> {

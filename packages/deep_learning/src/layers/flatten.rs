@@ -5,7 +5,7 @@ pub struct Flatten;
 
 impl<T:Clone> Layer<T> for Flatten {
     fn call(&self, input: &math::linearalg::Tensor<T>) -> math::linearalg::Tensor<T> {
-        input.flatten()
+        input.reshape(&vec![input.data.len(), 1])
     }
 
     fn backprop(&self, input: &math::linearalg::Tensor<T>, output_gradient: &math::linearalg::Tensor<T>,) -> (Option<crate::optimizers::LayerLossGradients<T>>, Option<math::linearalg::Tensor<T>>) {

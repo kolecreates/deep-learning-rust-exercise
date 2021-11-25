@@ -8,6 +8,13 @@ pub mod linearalg {
         pub data: Vec<T>
     }
 
+    pub fn print_vec<T: Display>(v: &Vec<T>){
+        for i in 0..v.len() {
+            print!("{},", v[i]);
+        }
+        println!("");
+    }
+
     pub fn tensor_sqrt(t: &Tensor<f32>) -> Tensor<f32> {
         let mut output = vec![0f32; t.data.len()];
         for i in 0..t.data.len() {
@@ -172,42 +179,18 @@ pub mod linearalg {
 
         fn flatten_indices_for_broadcast(&self, indices: &Vec<usize>) -> usize {
             let rank = self.get_rank();
+            let ind_len = indices.len();
             let mut adjusted = vec![0; rank];
             for i in 0..rank {
                 let j = rank - i - 1;
+                let k =  ind_len - i - 1;
                 if self.shape[j] == 1 {
                     adjusted[j] = 0;
                 }else{
-                    adjusted[j] = indices[j];
+                    adjusted[j] = indices[k];
                 }
             }
-
             self.flatten_indices(&adjusted)
-        }
-        
-
-        fn get_indices_of_slices(&self, start_indices: &Vec<usize>, end_indices: &Vec<usize>) -> Vec<(usize, usize)> {
-            let size = get_shape_from_range(end_indices, start_indices);
-            let slice_count = get_max_slice_count(&size);
-            let slice_size = size[size.len()-1];
-            let mut output: Vec<(usize, usize)> = vec![];
-            let mut slice_start_indices = start_indices.clone();
-            for _slice_num in 0..slice_count {
-                let slice_start = self.flatten_indices(&slice_start_indices);
-                let slice_end = slice_start + slice_size;
-                output.push((slice_start, slice_end));
-                for j in 0..size.len()-1 {
-                    let i = size.len() - j - 2;
-                    let dim_size = size[i];
-                    let dim_index = slice_start_indices[i];
-                    if dim_index - start_indices[i] < dim_size {
-                        slice_start_indices[i] += 1;
-                        break;
-                    }
-                }
-            }
-
-            output
         }
 
         pub fn get_rank(&self) -> usize {
@@ -220,12 +203,20 @@ pub mod linearalg {
         }
 
         pub fn set_elements(&mut self, start_indices: &Vec<usize>, end_indices: &Vec<usize>, values: &Tensor<T>){
-            let indices_of_slices = self.get_indices_of_slices(start_indices, end_indices);
-            for slice_num in 0..indices_of_slices.len() {
-                let (slice_start, slice_end) = indices_of_slices[slice_num];
-                let slice_size = slice_end - slice_start;
-                let source_start_index = slice_num*slice_size;
-                self.data[slice_start..slice_end].copy_from_slice(&values.data[source_start_index..source_start_index+slice_size]);
+            let range_shape = get_shape_from_range(end_indices, start_indices);
+            let rank = values.get_rank();
+            assert!(range_shape.len() == rank);
+            let mut i = 0;
+            let mut offsets = vec![0; rank];
+            while i < values.data.len() {
+                let mut indices = vec![0; rank];
+                for i in 0..rank{
+                    indices[i] = start_indices[i] + offsets[i];
+                }
+                let flat_index = self.flatten_indices(&indices);
+                self.data[flat_index] = values.data[i];
+                inc_indices(&range_shape, &mut offsets);
+                i+=1;
             }
         }
 
@@ -450,8 +441,9 @@ pub mod linearalg {
 
             //check if broadcasting can be performed
             for i in 0..min_rank {
-                let j = min_rank - i - 1;
-                assert!(a.shape[j] == b.shape[j] || a.shape[j] == 1 || b.shape[j] == 1);
+                let aj = a_rank - i - 1;
+                let bj = b_rank - i - 1;
+                assert!(a.shape[aj] == b.shape[bj] || a.shape[aj] == 1 || b.shape[bj] == 1);
             }
 
             let max_rank = cmp::max(a_rank, b_rank);
@@ -544,8 +536,11 @@ pub mod linearalg {
             let mut rng = StdRng::seed_from_u64(seed);
             let first_axis_len = self.shape[0];
             let dist = Uniform::from(0..first_axis_len);
-            for _i in 0..first_axis_len-1 {
+            for i in 0..first_axis_len-1 {
                 let random_index = dist.sample(&mut rng);
+                if i % 1000 == 0 {
+                    println!("shuffle index {}/{}", i, first_axis_len);
+                }
                 if random_index == 0 {
                     continue;
                 }
@@ -637,6 +632,10 @@ mod tests {
             let t5 = Tensor { shape: vec![1], data: vec![2.0]};
             let t6 = Tensor { shape: vec![5,4], data: vec![2.0; 5*4] };
             assert!(t4.multiply(&t5).equals(&t6));
+            let t7 = Tensor { shape: vec![3,4], data: vec![1,2,3,4,5,6,7,8,9,10,11,12] };
+            let t8 = Tensor { shape: vec![1,3,4], data: vec![1,2,3,4,5,6,7,8,9,10,11,12]};
+            let t9 = Tensor { shape: vec![1,3,4], data: vec![1, 4, 9, 16, 25, 36, 49, 64, 81, 100, 121, 144]};
+            assert!(t7.multiply(&t8).equals(&t9));
         }
 
         #[test]

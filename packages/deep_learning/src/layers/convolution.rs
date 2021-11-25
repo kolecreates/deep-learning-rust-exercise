@@ -1,4 +1,4 @@
-use math::linearalg::Tensor;
+use math::linearalg::{Tensor, print_vec};
 
 use crate::{initializers::Initializer, optimizers::LayerLossGradients};
 
@@ -81,9 +81,6 @@ impl Layer<f32> for Conv {
         for filter_index in 0..number_of_filters {
             let mut image_y = 0;
             let mut output_y = 0;
-            // if filter_index == 0 {
-            //     println!("rank {} input shape: {} {} {}", input.get_rank(), input.shape[0], input.shape[1], input.shape[2]);
-            // }
             while image_y + filter_size <= image_size {
                 let mut image_x = 0;
                 let mut output_x = 0;

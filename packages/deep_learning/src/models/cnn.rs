@@ -74,6 +74,8 @@ impl Model<f32, u8> for CNNClassifier {
             optimizer: &mut self.optimizer,
         };
 
+        println!("Loaded CNN Classifier sequential model...");
+
         model.train(num_epochs, batch_size, samples, &mut one_hot_labels, seed);
     }
 }

@@ -19,7 +19,7 @@ impl Layer<f32> for MaxPool {
         let output_height = ((image_height - self.kernal_size) / self.stride) + 1;
         let output_width = ((image_width - self.kernal_size) / self.stride) + 1;
 
-        let mut output = Tensor::from_shape(vec![output_height, output_width], 0f32);
+        let mut output = Tensor::from_shape(vec![image_depth, output_height, output_width], 0f32);
 
         for channel_index in 0..image_depth {
             let mut image_y = 0;
