@@ -7,7 +7,7 @@ pub struct Softmax;
 impl Layer<f32> for Softmax {
     fn call(&self, input: &Tensor<f32>) -> Tensor<f32> {
         let output = tensor_exp(&input);
-        output.scalar_divide(output.sum()).flatten()
+        output.scalar_divide(output.sum())
     }
 
     fn backprop(&self, _input: &Tensor<f32>, _output_gradient: &Tensor<f32>,) -> (Option<crate::optimizers::LayerLossGradients<f32>>, Option<Tensor<f32>>) {
@@ -23,12 +23,15 @@ pub struct ReLU;
 
 impl ReLU {
     fn clamp(to_copy: &Tensor<f32>, to_check: &Tensor<f32>) -> Tensor<f32> {
-        let mut out = Tensor::from_shape(to_copy.shape.clone(), 0f32);
-        for i in 0..out.data.len() {
-            if to_check.data[i] < 0.0 {
+        let out_shape = Tensor::get_broadcasted_shape(to_copy, to_check);
+        let indices = Tensor::get_indices_for_broadcasting(&out_shape, to_copy, to_check);
+        let mut out = Tensor::from_shape(out_shape, 0f32);
+        for i in 0..indices.len() {
+            let (to_copy_index, to_check_index) = indices[i];
+            if to_check.data[to_check_index] < 0.0 {
                 out.data[i] = 0.0;
             }else{
-                out.data[i] = to_copy.data[i];
+                out.data[i] = to_copy.data[to_copy_index];
             }
         }
 
@@ -42,8 +45,6 @@ impl Layer<f32> for ReLU {
     }
 
     fn backprop(&self, input: &Tensor<f32>, output_gradient: &Tensor<f32>,) -> (Option<crate::optimizers::LayerLossGradients<f32>>, Option<Tensor<f32>>) {
-        print_vec(&output_gradient.shape);
-        print_vec(&input.shape);
         (None, Some(ReLU::clamp(output_gradient, input)))
     }
 

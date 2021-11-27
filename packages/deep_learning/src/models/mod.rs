@@ -35,7 +35,6 @@ impl<'a> Model<f32, f32> for SequentialModel<'a> {
                     let scaled_index = batch_index * batch_size + sample_index;
                     let mut outputs: Vec<Tensor<f32>> = vec![samples.get_at_first_axis_index(scaled_index)];
                     for layer_index in 0..layer_count {
-                        println!("layer start {}", layer_index);
                         let layer = &self.layers[layer_index];
                         outputs.push(layer.call(&outputs[outputs.len()-1]));
                     }
@@ -47,16 +46,16 @@ impl<'a> Model<f32, f32> for SequentialModel<'a> {
 
                     let mut j = 0;
 
-                    println!("OUTPUTS SIZE {}", outputs.len());
-
                     for i in 0..layer_count {
                         let layer_index = layer_count - i - 1;
-                        let layer_input = &outputs[outputs.len()-i-3];
+                        let layer_input = &outputs[outputs.len()-i-2];
                         let (loss_gradients_option, input_gradient)  = self.layers[layer_index].backprop(layer_input, &output_gradient);
                         
                         match input_gradient {
                             None => {},
-                            Some(grad)=> output_gradient = grad,
+                            Some(grad)=> {
+                                output_gradient = grad;
+                            }
                         }
 
                         match loss_gradients_option {

@@ -204,8 +204,8 @@ pub mod linearalg {
 
         pub fn set_elements(&mut self, start_indices: &Vec<usize>, end_indices: &Vec<usize>, values: &Tensor<T>){
             let range_shape = get_shape_from_range(end_indices, start_indices);
-            let rank = values.get_rank();
-            assert!(range_shape.len() == rank);
+            assert!(vec_product(&range_shape) == values.data.len());
+            let rank = range_shape.len();
             let mut i = 0;
             let mut offsets = vec![0; rank];
             while i < values.data.len() {
@@ -434,7 +434,7 @@ pub mod linearalg {
 
         //follows NumPy broadcasting rules 
         //see docs: https://numpy.org/doc/stable/user/basics.broadcasting.html
-        fn get_broadcasted_shape(a: &Tensor<T>, b: &Tensor<T>) -> Vec<usize> {
+        pub fn get_broadcasted_shape(a: &Tensor<T>, b: &Tensor<T>) -> Vec<usize> {
             let a_rank = a.get_rank();
             let b_rank = b.get_rank();
             let min_rank = cmp::min(a_rank, b_rank);
@@ -464,7 +464,7 @@ pub mod linearalg {
 
         //follows NumPy broadcasting rules 
         //see docs: https://numpy.org/doc/stable/user/basics.broadcasting.html
-        fn get_indices_for_broadcasting(out_shape: &Vec<usize>, a: &Tensor<T>, b: &Tensor<T>) -> Vec<(usize,usize)> {
+        pub fn get_indices_for_broadcasting(out_shape: &Vec<usize>, a: &Tensor<T>, b: &Tensor<T>) -> Vec<(usize,usize)> {
             let slice_count = get_max_slice_count(&out_shape);
             let element_count = slice_count * out_shape[out_shape.len()-1];
             let mut out = vec![(0,0); element_count];
