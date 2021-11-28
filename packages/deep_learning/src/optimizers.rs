@@ -1,13 +1,13 @@
-use math::linearalg::{Tensor, tensor_sqrt};
+use ndarray::{Array, ArrayD};
 
 pub struct LayerOptimizations<T> {
-    pub weights: Tensor<T>,
-    pub bias: Tensor<T>
+    pub weights: ArrayD<T>,
+    pub bias: ArrayD<T>
 }
 
 pub struct LayerLossGradients<T> {
-    pub weights: Tensor<T>,
-    pub bias: Tensor<T>
+    pub weights: ArrayD<T>,
+    pub bias: ArrayD<T>,
 }
 
 pub trait Optimizer<T> {
@@ -16,10 +16,10 @@ pub trait Optimizer<T> {
 
 //https://machinelearningmastery.com/adam-optimization-from-scratch/
 pub struct AdamOptimizer {
-    moment_w1: Vec<Tensor<f32>>,
-    moment_w2: Vec<Tensor<f32>>,
-    moment_b1: Vec<Tensor<f32>>,
-    moment_b2: Vec<Tensor<f32>>,
+    moment_w1: Vec<ArrayD<f32>>,
+    moment_w2: Vec<ArrayD<f32>>,
+    moment_b1: Vec<ArrayD<f32>>,
+    moment_b2: Vec<ArrayD<f32>>,
     learning_rate: f32,
     beta1: f32,
     beta2: f32,
@@ -31,16 +31,16 @@ impl AdamOptimizer {
         AdamOptimizer { moment_w1: vec![], moment_w2: vec![], moment_b1: vec![], moment_b2: vec![], learning_rate, beta1, beta2, epsilon }
     }
 
-    fn calc_moment_1(&self, moment1: &Tensor<f32>, gradient: &Tensor<f32>) -> Tensor<f32> {
-        moment1.scalar_multiply(self.beta1).add(&gradient.scalar_multiply(1.0-self.beta1))
+    fn calc_moment_1(&self, moment1: &ArrayD<f32>, gradient: &ArrayD<f32>) -> ArrayD<f32> {
+        (moment1 * self.beta1) + (gradient * (1.0-self.beta1))
     }
 
-    fn calc_moment_2(&self, moment2: &Tensor<f32>, gradient: &Tensor<f32>) -> Tensor<f32> {
-        moment2.scalar_multiply(self.beta2).add(&gradient.multiply(&gradient).scalar_multiply(1.0-self.beta2))
+    fn calc_moment_2(&self, moment2: &ArrayD<f32>, gradient: &ArrayD<f32>) -> ArrayD<f32> {
+        (moment2 * self.beta2) + (gradient * gradient * (1.0-self.beta2))
     }
 
-    fn calc_optimization(&self, moment1: &Tensor<f32>, moment2: &Tensor<f32>) -> Tensor<f32> {
-        moment1.scalar_multiply(self.learning_rate).divide(&tensor_sqrt(&moment2).scalar_add(self.epsilon)).scalar_multiply(-1.0)
+    fn calc_optimization(&self, moment1: &ArrayD<f32>, moment2: &ArrayD<f32>) -> ArrayD<f32> {
+        ((moment1 * self.learning_rate) / (moment2.map(f32::sqrt) + self.epsilon)) * -1.0
     }
 }
 
@@ -51,10 +51,10 @@ impl Optimizer<f32> for AdamOptimizer {
             //initialize moment vectors
             for i in 0..batch_avg_loss_gradients.len() {
                 let layer_grads = &batch_avg_loss_gradients[i];
-                self.moment_w1.push(Tensor::from_shape(layer_grads.weights.shape.clone(), 0f32));
-                self.moment_b1.push(Tensor::from_shape(layer_grads.bias.shape.clone(), 0f32));
-                self.moment_w2.push(Tensor::from_shape(layer_grads.weights.shape.clone(), 0f32));
-                self.moment_b2.push(Tensor::from_shape(layer_grads.bias.shape.clone(), 0f32));
+                self.moment_w1.push(Array::zeros(layer_grads.weights.shape()));
+                self.moment_b1.push(Array::zeros(layer_grads.bias.shape()));
+                self.moment_w2.push(Array::zeros(layer_grads.weights.shape()));
+                self.moment_b2.push(Array::zeros(layer_grads.bias.shape()));
             }
         }
         

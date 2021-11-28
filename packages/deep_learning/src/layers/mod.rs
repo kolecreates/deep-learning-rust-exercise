@@ -1,22 +1,23 @@
 
-use math::linearalg::{Tensor};
-
 mod convolution;
 mod dense;
 mod maxpool;
 mod flatten;
 pub mod activations;
 
+use std::ops::Add;
+
 pub use convolution::Conv;
 pub use dense::Dense;
 pub use maxpool::MaxPool;
 pub use flatten::Flatten;
+use ndarray::{ArrayD, ArrayViewD};
 
 use crate::{initializers::Initializer, optimizers::{LayerLossGradients, LayerOptimizations}};
 
 pub trait Layer<T> {
-    fn call(&self, input: &Tensor<T>) -> Tensor<T>;
-    fn backprop(&self, input: &Tensor<T>, output_gradient: &Tensor<T>,) -> (Option<LayerLossGradients<T>>, Option<Tensor<T>>);
+    fn call(&self, input: &ArrayViewD<T>) -> ArrayD<T>;
+    fn backprop(&self, input: &ArrayViewD<T>, output_gradient: &ArrayViewD<T>,) -> (Option<LayerLossGradients<T>>, Option<ArrayD<T>>);
     fn get_state(&mut self) -> Option<&mut dyn LayerState<T>>;
 }
 
@@ -25,8 +26,8 @@ pub trait LayerState<T> {
 }
 
 pub struct StandardLayerState<T> {
-    pub weights: Tensor<T>,
-    pub bias: Tensor<T>,
+    pub weights: ArrayD<T>,
+    pub bias: ArrayD<T>,
 }
 
 impl<T> StandardLayerState<T> {
@@ -35,9 +36,9 @@ impl<T> StandardLayerState<T> {
     }
 }
 
-impl LayerState<f32> for StandardLayerState<f32> {
-    fn update(&mut self, optimization: &LayerOptimizations<f32>) {
-        self.bias = self.bias.add(&optimization.bias);
-        self.weights = self.weights.add(&optimization.weights);
+impl<T: Add<Output = T>> LayerState<T> for StandardLayerState<T> {
+    fn update(&mut self, optimization: &LayerOptimizations<T>) {
+        self.bias = &self.bias + &optimization.bias;
+        self.weights = &self.weights + &optimization.weights;
     }
 }

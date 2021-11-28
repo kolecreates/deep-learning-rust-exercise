@@ -1,3 +1,5 @@
+use ndarray::ArrayD;
+
 use crate::{initializers::{VarianceScaling, Zeros}, layers, losses::CategoricalCrossEntropy, models::{Model, SequentialModel}, optimizers::AdamOptimizer};
 
 pub struct CNNClassifier {
@@ -48,14 +50,14 @@ impl CNNClassifier {
     }
 }
 
-impl Model<f32, u8> for CNNClassifier {
-    fn train(&mut self, num_epochs: usize, batch_size: usize, samples: &mut math::linearalg::Tensor<f32>, labels: &mut math::linearalg::Tensor<u8>, seed:u64) {
+impl Model<f32> for CNNClassifier {
+    fn train(&mut self, num_epochs: usize, batch_size: usize, samples: &mut ArrayD<f32>, labels: &mut ArrayD<f32>, seed:u64) {
         
-        let mut one_hot_labels = math::linearalg::Tensor::from_shape(vec![labels.shape[0], self.num_classes], 0f32);
+        // let mut one_hot_labels = math::linearalg::Tensor::from_shape(vec![labels.shape[0], self.num_classes], 0f32);
 
-        for i in 0..labels.shape[0] {
-            one_hot_labels.data[i*self.num_classes + (labels.data[i] as usize)] = 1.0;
-        }
+        // for i in 0..labels.shape[0] {
+        //     one_hot_labels.data[i*self.num_classes + (labels.data[i] as usize)] = 1.0;
+        // }
 
         let mut model = SequentialModel { 
             layers: vec![
@@ -76,6 +78,6 @@ impl Model<f32, u8> for CNNClassifier {
 
         println!("Loaded CNN Classifier sequential model...");
 
-        model.train(num_epochs, batch_size, samples, &mut one_hot_labels, seed);
+        model.train(num_epochs, batch_size, samples, &mut labels, seed);
     }
 }
