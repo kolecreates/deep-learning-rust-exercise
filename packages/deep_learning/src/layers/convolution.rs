@@ -1,4 +1,6 @@
-use math::linearalg::{Tensor, print_vec};
+use std::ops::{Add, Mul};
+
+use ndarray::{ArrayD, ArrayView3, ArrayViewD, Axis, IndexLonger, Ix3, s};
 
 use crate::{initializers::Initializer, optimizers::LayerLossGradients};
 
@@ -18,22 +20,24 @@ impl Conv {
 
 impl Layer<f32> for Conv {
 
-    fn backprop(&self, input: &Tensor<f32>,  output_gradient: &Tensor<f32>, ) -> (Option<LayerLossGradients<f32>>, Option<Tensor<f32>>) {
-        let number_of_filters = self.state.weights.shape[0];
-        let filter_size = self.state.weights.shape[2];
-        let image_channels = input.shape[0];
-        let image_size = input.shape[1];
+    fn backprop(&self, input: &ArrayViewD<f32>,  output_gradient: &ArrayViewD<f32>, ) -> (Option<LayerLossGradients<f32>>, Option<ArrayD<f32>>) {
+        let weight_shape = self.state.weights.shape();
+        let number_of_filters = weight_shape[0];
+        let filter_size = weight_shape[2];
+        let input_shape = input.shape();
+        let image_channels = input_shape[0];
+        let image_size = input_shape[1];
         let mut loss_gradients = LayerLossGradients {
-            weights: Tensor::from_shape(self.state.weights.shape.clone(), 0.0),
-            bias: Tensor::from_shape(self.state.bias.shape.clone(), 0.0),
+            weights: ArrayD::zeros(self.state.weights.raw_dim()),
+            bias: ArrayD::zeros(self.state.bias.raw_dim()),
         };
-        let mut input_gradient = Tensor::from_shape(input.shape.clone(), 0.0);
+        let mut input_gradient = ArrayD::zeros(input.raw_dim());
 
         for filter_index in 0..number_of_filters {
             let mut image_y = 0;
             let mut out_y = 0;
-            let mut filter_gradient = loss_gradients.weights.get_at_first_axis_index(filter_index);
-            let filter = self.state.weights.get_at_first_axis_index(filter_index);
+            let mut filter_gradient = loss_gradients.weights.slice_mut(s![filter_index, .., ..]).into_dimensionality::<Ix3>().unwrap();
+            let filter = self.state.weights.index_axis(Axis(0), filter_index);
             while image_y + filter_size <= image_size {
                 let mut image_x = 0;
                 let mut out_x = 0;
@@ -41,14 +45,12 @@ impl Layer<f32> for Conv {
                     let input_patch_start = vec![0, image_y, image_x];
                     let input_patch_end = vec![image_channels, image_y+filter_size, image_x+filter_size];
 
-                    let input_patch = input.get_elements(&input_patch_start, &input_patch_end);
-                    let output_derivative = output_gradient.get_element(&vec![filter_index, out_y, out_x]);
-                    filter_gradient = filter_gradient.add(&input_patch.scalar_multiply(output_derivative)); 
+                    let input_patch = input.slice(s![0..image_channels, image_y..image_y+filter_size, image_x..image_x+filter_size]);
+                    let output_derivative = output_gradient[[filter_index, out_y, out_x]];
+                    filter_gradient.scaled_add(output_derivative, &input_patch);
 
-                    
-                    let mut input_gradient_patch = input_gradient.get_elements(&input_patch_start, &input_patch_end);
-                    input_gradient_patch = input_gradient_patch.add(&filter.scalar_multiply(output_derivative));
-                    input_gradient.set_elements(&input_patch_start, &input_patch_end, &input_gradient_patch);
+                    let mut input_gradient_patch = input_gradient.slice_mut(s![0..image_channels, image_y..image_y+filter_size, image_x..image_x+filter_size]);
+                    input_gradient_patch.scaled_add(output_derivative, &filter);
 
                     image_x += self.step;
                     out_x += 1;
@@ -59,8 +61,7 @@ impl Layer<f32> for Conv {
                 out_y += 1;
             }
 
-            loss_gradients.weights.set_at_first_axis_index(filter_index, &filter_gradient);
-            loss_gradients.bias.data[filter_index] = output_gradient.get_at_first_axis_index(filter_index).sum();
+            loss_gradients.bias[[filter_index, 0]] = output_gradient.index_axis(Axis(0), filter_index).sum();
         }
 
         (Some(loss_gradients), Some(input_gradient))
