@@ -5,8 +5,6 @@ mod maxpool;
 mod flatten;
 pub mod activations;
 
-use std::ops::Add;
-
 pub use convolution::Conv;
 pub use dense::Dense;
 pub use maxpool::MaxPool;
@@ -36,8 +34,8 @@ impl<T> StandardLayerState<T> {
     }
 }
 
-impl<T: Add<Output = T>> LayerState<T> for StandardLayerState<T> {
-    fn update(&mut self, optimization: &LayerOptimizations<T>) {
+impl LayerState<f32> for StandardLayerState<f32> {
+    fn update(&mut self, optimization: &LayerOptimizations<f32>) {
         self.bias = &self.bias + &optimization.bias;
         self.weights = &self.weights + &optimization.weights;
     }

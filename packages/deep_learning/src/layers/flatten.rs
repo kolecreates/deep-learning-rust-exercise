@@ -1,15 +1,17 @@
+use ndarray::{ArrayD, ArrayViewD};
+
 use super::Layer;
 
 pub struct Flatten;
 
 
 impl<T:Clone> Layer<T> for Flatten {
-    fn call(&self, input: &math::linearalg::Tensor<T>) -> math::linearalg::Tensor<T> {
-        input.reshape(&vec![input.data.len(), 1])
+    fn call(&self, input: &ArrayViewD<T>) -> ArrayD<T> {
+        input.to_owned().into_shape((input.len(), 1)).unwrap().into_dyn()
     }
 
-    fn backprop(&self, input: &math::linearalg::Tensor<T>, output_gradient: &math::linearalg::Tensor<T>,) -> (Option<crate::optimizers::LayerLossGradients<T>>, Option<math::linearalg::Tensor<T>>) {
-        (None, Some(output_gradient.reshape(&input.shape)))
+    fn backprop(&self, input: &ArrayViewD<T>, output_gradient: &ArrayViewD<T>,) -> (Option<crate::optimizers::LayerLossGradients<T>>, Option<ArrayD<T>>) {
+        (None, Some(output_gradient.to_owned().into_shape(input.raw_dim()).unwrap().into_dyn()))
     }
 
     fn get_state(&mut self) -> Option<&mut dyn super::LayerState<T>> {

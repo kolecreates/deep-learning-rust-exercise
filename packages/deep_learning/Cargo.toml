@@ -10,3 +10,4 @@ math = { path = "../math" }
 data = { path = "../data" }
 ndarray = "0.15.4"
 ndarray-rand = "0.14.0"
+ndarray-stats = "0.5.0"

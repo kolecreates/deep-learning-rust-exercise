@@ -40,7 +40,7 @@ impl AdamOptimizer {
     }
 
     fn calc_optimization(&self, moment1: &ArrayD<f32>, moment2: &ArrayD<f32>) -> ArrayD<f32> {
-        ((moment1 * self.learning_rate) / (moment2.map(f32::sqrt) + self.epsilon)) * -1.0
+        ((moment1 * self.learning_rate) / (moment2.map(|x| x.sqrt()) + self.epsilon)) * -1.0
     }
 }
 

@@ -1,11 +1,12 @@
-use ndarray::{Array, ArrayBase, Dimension, OwnedRepr};
+use math::linearalg::vec_product;
+use ndarray::{Array, Array2, ArrayBase, ArrayD, Dim, Dimension, OwnedRepr};
 use ndarray_rand::RandomExt;
 use ndarray_rand::rand::SeedableRng;
 use ndarray_rand::rand::prelude::StdRng;
 use ndarray_rand::rand_distr::Normal;
 
 pub trait Initializer<T> {
-    fn initialize<D: Dimension>(&self, shape: D) -> ArrayBase<OwnedRepr<T>, D>;
+    fn initialize(&self, shape: &[usize]) -> ArrayD<T>;
 }
 
 pub struct VarianceScaling {
@@ -13,8 +14,8 @@ pub struct VarianceScaling {
 }
 
 impl Initializer<f32> for VarianceScaling {
-    fn initialize<D: Dimension>(&self, shape: D) -> ArrayBase<OwnedRepr<f32>, D> {
-        let units = shape.size();
+    fn initialize(&self, shape: &[usize]) -> ArrayD<f32> {
+        let units = vec_product(&shape.to_vec());
         let stddev = (1.0/(units as f32)).sqrt();
         let mut rng = StdRng::seed_from_u64(self.seed);
         let dist = Normal::new(0f32, stddev).unwrap();
@@ -25,7 +26,7 @@ impl Initializer<f32> for VarianceScaling {
 pub struct Zeros;
 
 impl Initializer<f32> for Zeros {
-    fn initialize<D: Dimension>(&self, shape: D) -> ArrayBase<OwnedRepr<f32>, D> {
+    fn initialize(&self, shape: &[usize]) -> ArrayD<f32> {
         Array::zeros(shape)
     }
 }
@@ -35,7 +36,7 @@ pub struct Constant {
 }
 
 impl Initializer<f32> for Constant {
-    fn initialize<D: Dimension>(&self, shape: D) -> ArrayBase<OwnedRepr<f32>, D> {
+    fn initialize(&self, shape: &[usize]) -> ArrayD<f32> {
         Array::from_elem(shape, self.value)
     }
 }

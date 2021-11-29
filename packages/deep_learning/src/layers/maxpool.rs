@@ -1,4 +1,5 @@
-use math::linearalg::Tensor;
+use ndarray::{Array3, ArrayD, ArrayViewD, s};
+use ndarray_stats::QuantileExt;
 
 use crate::optimizers::LayerLossGradients;
 
@@ -11,15 +12,16 @@ pub struct MaxPool {
 
 impl Layer<f32> for MaxPool {
     
-    fn call(&self, input: &Tensor<f32>) -> Tensor<f32> {
-        let image_depth = input.shape[0];
-        let image_height = input.shape[1];
-        let image_width = input.shape[2];
+    fn call(&self, input: &ArrayViewD<f32>) -> ArrayD<f32> {
+        let shape = input.shape();
+        let image_depth = shape[0];
+        let image_height = shape[1];
+        let image_width = shape[2];
 
         let output_height = ((image_height - self.kernal_size) / self.stride) + 1;
         let output_width = ((image_width - self.kernal_size) / self.stride) + 1;
 
-        let mut output = Tensor::from_shape(vec![image_depth, output_height, output_width], 0f32);
+        let mut output: Array3<f32> = Array3::zeros((image_depth, output_height, output_width));
 
         for channel_index in 0..image_depth {
             let mut image_y = 0;
@@ -28,8 +30,8 @@ impl Layer<f32> for MaxPool {
                 let mut image_x = 0;
                 let mut output_x = 0;
                 while image_x + self.kernal_size < image_width {
-                    let kernal = input.get_elements(&vec![channel_index, image_y, image_x], &vec![channel_index, image_y+self.kernal_size, image_x+self.kernal_size]);
-                    output.set_element(&vec![channel_index, output_y, output_x], kernal.max());
+                    let kernal = input.slice(s![channel_index, image_y..image_y+self.kernal_size, image_x..image_x+self.kernal_size]);
+                    output[[channel_index, output_y, output_x]] = *kernal.max_skipnan();
                     image_x += self.stride;
                     output_x += 1;
                 }
@@ -37,15 +39,16 @@ impl Layer<f32> for MaxPool {
                 output_y += 1;
             }
         }
-        output
+        output.into_dyn()
     }
 
-    fn backprop(&self, input: &Tensor<f32>, output_gradient: &Tensor<f32>,) -> (Option<LayerLossGradients<f32>>, Option<Tensor<f32>>){
+    fn backprop(&self, input: &ArrayViewD<f32>, output_gradient: &ArrayViewD<f32>,) -> (Option<LayerLossGradients<f32>>, Option<ArrayD<f32>>){
         
-        let mut input_gradient = Tensor::from_shape(input.shape.clone(), 0f32);
+        let shape = input.shape();
+        let input_channels = shape[0];
+        let input_size = shape[1];
 
-        let input_channels = input.shape[0];
-        let input_size = input.shape[1];
+        let mut input_gradient: Array3<f32> = Array3::zeros((input_channels, input_size, input_size));
 
         for channel_index in 0..input_channels {
             let mut input_y = 0;
@@ -54,9 +57,9 @@ impl Layer<f32> for MaxPool {
                 let mut input_x = 0;
                 let mut output_x = 0;
                 while input_x + self.kernal_size < input_size {
-                    let window = input.get_elements(&vec![channel_index, input_y, input_x], &vec![channel_index, input_y+self.kernal_size, input_x+self.kernal_size]);
-                    let indices_of_max = window.get_indices_of_max();
-                    input_gradient.set_element(&vec![channel_index, input_y+indices_of_max[0], input_x+indices_of_max[1]], output_gradient.get_element(&vec![channel_index, output_y, output_x]));
+                    let window = input.slice(s![channel_index, input_y..input_y+self.kernal_size, input_x..input_x+self.kernal_size]);
+                    let (max_y, max_x) = window.argmax_skipnan().unwrap();
+                    input_gradient[[channel_index, input_y+max_y, input_x+max_x]] = output_gradient[[channel_index, output_y, output_x]];
                     input_x += self.stride;
                     output_x += 1;
                 }
@@ -65,7 +68,7 @@ impl Layer<f32> for MaxPool {
             }
         }
 
-        (None, Some(input_gradient))
+        (None, Some(input_gradient.into_dyn()))
     }
 
     fn get_state(&mut self) -> Option<&mut dyn LayerState<f32>> {
