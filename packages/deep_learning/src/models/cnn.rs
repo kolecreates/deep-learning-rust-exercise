@@ -15,7 +15,6 @@ pub struct CNNClassifier {
     softmax: layers::activations::Softmax,
     optimizer: AdamOptimizer,
     loss: CategoricalCrossEntropy,
-    num_classes: usize,
 }
 
 impl CNNClassifier {
@@ -44,7 +43,6 @@ impl CNNClassifier {
             softmax: layers::activations::Softmax,
             optimizer: AdamOptimizer::create(0.01, 0.95, 0.99, 1e-7),
             loss: CategoricalCrossEntropy,
-            num_classes,
         }
         
     }

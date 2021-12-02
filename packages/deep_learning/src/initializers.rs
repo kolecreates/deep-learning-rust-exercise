@@ -1,5 +1,5 @@
 use math::linearalg::vec_product;
-use ndarray::{Array, Array2, ArrayBase, ArrayD, Dim, Dimension, OwnedRepr};
+use ndarray::{Array, ArrayD};
 use ndarray_rand::RandomExt;
 use ndarray_rand::rand::SeedableRng;
 use ndarray_rand::rand::prelude::StdRng;

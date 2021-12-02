@@ -1,6 +1,6 @@
-use std::ops::{Add, Mul};
 
-use ndarray::{Array3, ArrayD, ArrayView3, ArrayViewD, Axis, IndexLonger, Ix3, s};
+
+use ndarray::{Array3, ArrayD, ArrayViewD, Axis, s};
 
 use crate::{initializers::Initializer, optimizers::LayerLossGradients};
 
@@ -36,15 +36,12 @@ impl Layer<f32> for Conv {
         for filter_index in 0..number_of_filters {
             let mut image_y = 0;
             let mut out_y = 0;
-            let mut filter_gradient = loss_gradients.weights.slice_mut(s![filter_index, .., ..]).into_dimensionality::<Ix3>().unwrap();
+            let mut filter_gradient = loss_gradients.weights.index_axis_mut(Axis(0), filter_index);
             let filter = self.state.weights.index_axis(Axis(0), filter_index);
             while image_y + filter_size <= image_size {
                 let mut image_x = 0;
                 let mut out_x = 0;
                 while image_x + filter_size <= image_size {
-                    let input_patch_start = vec![0, image_y, image_x];
-                    let input_patch_end = vec![image_channels, image_y+filter_size, image_x+filter_size];
-
                     let input_patch = input.slice(s![0..image_channels, image_y..image_y+filter_size, image_x..image_x+filter_size]);
                     let output_derivative = output_gradient[[filter_index, out_y, out_x]];
                     filter_gradient.scaled_add(output_derivative, &input_patch);

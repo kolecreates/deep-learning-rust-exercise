@@ -15,6 +15,6 @@ impl<T:Clone> Layer<T> for Flatten {
     }
 
     fn get_state(&mut self) -> Option<&mut dyn super::LayerState<T>> {
-        todo!()
+        None
     }
 }

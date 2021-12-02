@@ -1,4 +1,4 @@
-use ndarray::{ArrayD, ArrayViewD, Axis, Ix2, linalg::Dot};
+use ndarray::{ArrayD, ArrayViewD, Axis, Ix2};
 
 use crate::{initializers::Initializer, optimizers::LayerLossGradients};
 
