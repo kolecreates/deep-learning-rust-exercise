@@ -1,6 +1,6 @@
 use std::ops::{Add, Mul};
 
-use ndarray::{ArrayD, ArrayView3, ArrayViewD, Axis, IndexLonger, Ix3, s};
+use ndarray::{Array3, ArrayD, ArrayView3, ArrayViewD, Axis, IndexLonger, Ix3, s};
 
 use crate::{initializers::Initializer, optimizers::LayerLossGradients};
 
@@ -66,18 +66,20 @@ impl Layer<f32> for Conv {
 
         (Some(loss_gradients), Some(input_gradient))
     }
-    fn call(&self, input: &Tensor<f32>) -> Tensor<f32> {
-        let number_of_filters = self.state.weights.shape[0];
-        let filter_channels = self.state.weights.shape[1];
-        let filter_size = self.state.weights.shape[2];
-        let image_channels = input.shape[0];
-        let image_size = input.shape[1];
+    fn call(&self, input: &ArrayViewD<f32>) -> ArrayD<f32> {
+        let weights_shape = self.state.weights.shape();
+        let number_of_filters = weights_shape[0];
+        let filter_channels = weights_shape[1];
+        let filter_size = weights_shape[2];
+        let input_shape = input.shape();
+        let image_channels = input_shape[0];
+        let image_size = input_shape[1];
 
         assert!(filter_channels == image_channels);
 
         let out_size = ((image_size - filter_size) / self.step) + 1;
 
-        let mut output = Tensor::from_shape(vec![number_of_filters, out_size, out_size], 0f32);
+        let mut output = Array3::zeros((number_of_filters, out_size, out_size));
 
         for filter_index in 0..number_of_filters {
             let mut image_y = 0;
@@ -86,12 +88,12 @@ impl Layer<f32> for Conv {
                 let mut image_x = 0;
                 let mut output_x = 0;
                 while image_x + filter_size <= image_size {
-                    let filter = self.state.weights.get_at_first_axis_index(filter_index);
-                    let image_patch = input.get_elements(&vec![0, image_y, image_x], &vec![image_channels, image_y+filter_size, image_x+filter_size]);
-                    let product = filter.multiply(&image_patch);
+                    let filter = self.state.weights.index_axis(Axis(0), filter_index);
+                    let image_patch = input.slice(s![0, image_y..image_y+filter_size, image_x..image_x+filter_size]);
+                    let product = &filter * &image_patch;
                     let product_sum = product.sum();
-                    let filter_bias = self.state.bias.data[filter_index];
-                    output.set_element(&vec![filter_index, output_y, output_x], product_sum + filter_bias);
+                    let filter_bias = self.state.bias[[filter_index, 0]];
+                    output[[filter_index, output_y, output_x]] = product_sum + filter_bias;
                     image_x += self.step;
                     output_x += 1;
                 }
@@ -100,7 +102,7 @@ impl Layer<f32> for Conv {
             }
         }
 
-        output
+        output.into_dyn()
     }
 
     fn get_state(&mut self) -> Option<&mut dyn LayerState<f32>> {

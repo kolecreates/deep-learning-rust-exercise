@@ -1,4 +1,4 @@
-use ndarray::{ArrayD, ArrayViewD, Axis, Ix2};
+use ndarray::{ArrayD, ArrayViewD, Axis, Ix2, linalg::Dot};
 
 use crate::{initializers::Initializer, optimizers::LayerLossGradients};
 
@@ -17,11 +17,13 @@ impl Dense {
 
 impl Layer<f32> for Dense {
     fn call(&self, input: &ArrayViewD<f32>) -> ArrayD<f32> {
-        self.state.weights.into_dimensionality::<Ix2>().unwrap().dot(&input.into_dimensionality::<Ix2>().unwrap()) + self.state.bias
+        let input_d2 = input.view().into_dimensionality::<Ix2>().unwrap();
+        let wd2 = self.state.weights.view().into_dimensionality::<Ix2>().unwrap();
+        wd2.dot(&input_d2) + &self.state.bias
     }
 
     fn backprop(&self, input: &ArrayViewD<f32>, output_gradient: &ArrayViewD<f32>, ) -> (Option<LayerLossGradients<f32>>, Option<ArrayD<f32>>) {
-        let output_gradient_2d = output_gradient.into_dimensionality::<Ix2>().unwrap();
+        let output_gradient_2d = output_gradient.view().into_dimensionality::<Ix2>().unwrap();
         let input_gradient = self.state.weights.t().into_dimensionality::<Ix2>().unwrap().dot(&output_gradient_2d);
         (Some(LayerLossGradients {
             weights: output_gradient_2d.dot(&input.t().into_dimensionality::<Ix2>().unwrap()).into_dyn(),

@@ -35,11 +35,13 @@ impl<'a> Model<f32> for SequentialModel<'a> {
                 for sample_index in 0..batch_size {
                     println!("sample start {}", sample_index);
                     let scaled_index = batch_index * batch_size + sample_index;
-                    let mut outputs: Vec<ArrayViewD<f32>> = vec![samples.index_axis(Axis(0), scaled_index)];
+                    let mut sample = samples.index_axis(Axis(0), scaled_index).to_owned();
+                    sample.insert_axis_inplace(Axis(0));
+                    let mut outputs: Vec<ArrayD<f32>> = vec![sample];
                     let forward_pass_start = Instant::now();
                     for layer_index in 0..layer_count {
-                        let layer = self.layers[layer_index];
-                        outputs.push(layer.call(&outputs[outputs.len()-1]).view());
+                        let layer = &self.layers[layer_index];
+                        outputs.push(layer.call(&outputs[outputs.len()-1].view()));
                     }
 
                     let forward_pass_end = forward_pass_start.elapsed();
@@ -58,7 +60,7 @@ impl<'a> Model<f32> for SequentialModel<'a> {
                     for i in 0..layer_count {
                         let layer_index = layer_count - i - 1;
                         let layer_input = &outputs[outputs.len()-i-2];
-                        let (loss_gradients_option, input_gradient)  = self.layers[layer_index].backprop(layer_input, &output_gradient.view());
+                        let (loss_gradients_option, input_gradient)  = self.layers[layer_index].backprop(&layer_input.view(), &output_gradient.view());
                         
                         match input_gradient {
                             None => {},
@@ -72,8 +74,8 @@ impl<'a> Model<f32> for SequentialModel<'a> {
                             Some(loss_gradients) => {
                                 if sample_index > 0 {
                                     let batch_gradient = &mut batch_gradients[j];
-                                    batch_gradient.bias = batch_gradient.bias + loss_gradients.bias;
-                                    batch_gradient.weights = batch_gradient.weights + loss_gradients.weights;
+                                    batch_gradient.bias = &batch_gradient.bias + &loss_gradients.bias;
+                                    batch_gradient.weights = &batch_gradient.weights + &loss_gradients.weights;
                                     j += 1;
                                 }else{
                                     batch_gradients.push(loss_gradients);
@@ -86,15 +88,15 @@ impl<'a> Model<f32> for SequentialModel<'a> {
 
                     println!("Backprop time elapsed is: {:?}", backprop_end);
 
-                    cost += self.loss.compute(model_output, label);
+                    cost += self.loss.compute(&model_output.view(), label);
                 }
 
                 cost /= batch_size as f32;
 
                 for i in 0..batch_gradients.len() {
                     let batch_gradient = &mut batch_gradients[i];
-                    batch_gradient.bias = batch_gradient.bias / batch_size as f32;
-                    batch_gradient.weights = batch_gradient.weights / batch_size as f32;
+                    batch_gradient.bias = &batch_gradient.bias / batch_size as f32;
+                    batch_gradient.weights = &batch_gradient.weights / batch_size as f32;
                 }
 
                 let optimizations = self.optimizer.optimize(&batch_gradients);

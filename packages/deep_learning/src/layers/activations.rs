@@ -1,16 +1,17 @@
-use math::linearalg::{Tensor, print_vec, tensor_exp};
+use ndarray::{ArrayD, ArrayViewD, Zip};
 
 use super::Layer;
 
 pub struct Softmax;
 
 impl Layer<f32> for Softmax {
-    fn call(&self, input: &Tensor<f32>) -> Tensor<f32> {
-        let output = tensor_exp(&input);
-        output.scalar_divide(output.sum())
+    fn call(&self, input: &ArrayViewD<f32>) -> ArrayD<f32> {
+        let output = input.map(|x| x.exp());
+        let sum = output.sum();
+        output / sum
     }
 
-    fn backprop(&self, _input: &Tensor<f32>, _output_gradient: &Tensor<f32>,) -> (Option<crate::optimizers::LayerLossGradients<f32>>, Option<Tensor<f32>>) {
+    fn backprop(&self, _input: &ArrayViewD<f32>, _output_gradient: &ArrayViewD<f32>,) -> (Option<crate::optimizers::LayerLossGradients<f32>>, Option<ArrayD<f32>>) {
         (None, None)
     }
 
@@ -22,29 +23,26 @@ impl Layer<f32> for Softmax {
 pub struct ReLU;
 
 impl ReLU {
-    fn clamp(to_copy: &Tensor<f32>, to_check: &Tensor<f32>) -> Tensor<f32> {
-        let out_shape = Tensor::get_broadcasted_shape(to_copy, to_check);
-        let indices = Tensor::get_indices_for_broadcasting(&out_shape, to_copy, to_check);
-        let mut out = Tensor::from_shape(out_shape, 0f32);
-        for i in 0..indices.len() {
-            let (to_copy_index, to_check_index) = indices[i];
-            if to_check.data[to_check_index] < 0.0 {
-                out.data[i] = 0.0;
-            }else{
-                out.data[i] = to_copy.data[to_copy_index];
+    fn clamp(to_copy: &ArrayViewD<f32>, to_check: &ArrayViewD<f32>) -> ArrayD<f32> {
+        let mut out = to_copy.to_owned();
+
+        Zip::from(&mut out).and(to_check).for_each(|out, to_check|{
+            if to_check < &0f32 {
+                *out = 0f32;
             }
-        }
+        });
+
 
         out
     }
 }
 
 impl Layer<f32> for ReLU {
-    fn call(&self, input: &Tensor<f32>) -> Tensor<f32> {
+    fn call(&self, input: &ArrayViewD<f32>) -> ArrayD<f32> {
         ReLU::clamp(&input, &input)
     }
 
-    fn backprop(&self, input: &Tensor<f32>, output_gradient: &Tensor<f32>,) -> (Option<crate::optimizers::LayerLossGradients<f32>>, Option<Tensor<f32>>) {
+    fn backprop(&self, input: &ArrayViewD<f32>, output_gradient: &ArrayViewD<f32>,) -> (Option<crate::optimizers::LayerLossGradients<f32>>, Option<ArrayD<f32>>) {
         (None, Some(ReLU::clamp(output_gradient, input)))
     }
 
